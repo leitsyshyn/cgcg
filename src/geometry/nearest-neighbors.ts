@@ -1,7 +1,11 @@
-import type { AdjacencyGraph, NearestNeighbor, Point } from './types';
-import { distanceSquared, sameDistance } from './predicates';
+import type { NearestNeighbor, Point } from "./types";
+import { distanceSquared, sameDistance } from "./predicates";
+import { AdjacencyGraph } from "./adjacency-graph";
 
-export function nearestNeighbors(points: readonly Point[], graph: AdjacencyGraph): readonly NearestNeighbor[] {
+export function nearestNeighbors(
+  points: readonly Point[],
+  graph: AdjacencyGraph,
+): readonly NearestNeighbor[] {
   const result: NearestNeighbor[] = [];
 
   for (let index = 0; index < points.length; index += 1) {

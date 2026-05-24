@@ -1,5 +1,6 @@
 import type { Edge, NearestNeighbor, Point, Triangulation } from '../geometry/types';
 import type { TraceEvent } from '../trace/events';
+import type { TracePoint } from '../trace/events';
 
 export interface AppPoint {
   readonly id: string;
@@ -44,4 +45,14 @@ export function appEdge(edge: Edge, points: readonly AppPoint[], index: number):
   const to = points[edge.b];
   if (!from || !to) throw new Error('Edge references a missing app point.');
   return { id: `e${index + 1}`, from: from.id, to: to.id };
+}
+
+export function tracePoint(point: AppPoint): TracePoint {
+  return {
+    id: point.id,
+    label: point.name,
+    sortedLabel: point.sortedIndex === null ? null : `P${point.sortedIndex + 1}`,
+    x: point.point.x,
+    y: point.point.y,
+  };
 }

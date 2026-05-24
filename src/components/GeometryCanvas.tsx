@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
-import type { Point2D, PointId } from '../geometry/types';
+import type { PointId, TracePoint } from '../trace/events';
 import type { TraceFrame } from '../trace/frames';
 import type { VisualizationToggles } from '../app/visualization';
 
@@ -14,8 +14,8 @@ interface GeometryCanvasProps {
 
 interface RenderLine {
   readonly id: string;
-  readonly from: Point2D;
-  readonly to: Point2D;
+  readonly from: TracePoint;
+  readonly to: TracePoint;
   readonly className: string;
 }
 
@@ -46,7 +46,7 @@ export function GeometryCanvas({ frame, toggles, width, height, onAddPoint }: Ge
 
     svg.append('rect').attr('class', 'canvas-bg').attr('width', width).attr('height', height);
 
-    const pointById = new Map<PointId, Point2D>(frame.points.map((point) => [point.id, point]));
+    const pointById = new Map<PointId, TracePoint>(frame.points.map((point) => [point.id, point]));
     const activeSubset = new Set(frame.activeSubset);
     const highlightedEdges = new Set(frame.highlightedEdges);
 
@@ -132,7 +132,7 @@ export function GeometryCanvas({ frame, toggles, width, height, onAddPoint }: Ge
       .attr('marker-end', (line) => (line.className.includes('nearest') ? 'url(#arrow-head)' : null));
 
     if (frame.activeTriangle) {
-      const trianglePoints = frame.activeTriangle.map((id) => pointById.get(id)).filter((point): point is Point2D => Boolean(point));
+      const trianglePoints = frame.activeTriangle.map((id) => pointById.get(id)).filter((point): point is TracePoint => Boolean(point));
       if (trianglePoints.length === 3) {
         svg
           .append('polygon')
@@ -153,8 +153,8 @@ export function GeometryCanvas({ frame, toggles, width, height, onAddPoint }: Ge
     svg
       .append('g')
       .attr('class', 'points')
-      .selectAll<SVGCircleElement, Point2D>('circle')
-      .data<Point2D>(frame.points, (point) => point.id)
+      .selectAll<SVGCircleElement, TracePoint>('circle')
+      .data<TracePoint>(frame.points, (point) => point.id)
       .join('circle')
       .attr('class', (point) => {
         const classes = ['point', 'normal'];
@@ -170,13 +170,13 @@ export function GeometryCanvas({ frame, toggles, width, height, onAddPoint }: Ge
       svg
         .append('g')
         .attr('class', 'labels')
-        .selectAll<SVGTextElement, Point2D>('text')
-        .data<Point2D>(frame.points, (point) => point.id)
+        .selectAll<SVGTextElement, TracePoint>('text')
+        .data<TracePoint>(frame.points, (point) => point.id)
         .join('text')
         .attr('class', 'point-label')
         .attr('x', (point) => point.x + 8)
         .attr('y', (point) => point.y - 8)
-        .text((point) => point.label);
+        .text((point) => (point.sortedLabel ? `${point.label}/${point.sortedLabel}` : point.label));
     }
   }, [frame, toggles, width, height]);
 

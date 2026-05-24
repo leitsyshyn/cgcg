@@ -1,23 +1,25 @@
-import { describe, expect, it } from 'vitest';
-import { normalizeInput } from '../src/geometry/normalize';
+import { describe, expect, it } from "vitest";
+import { normalizePoints } from "../src/app/normalize";
+import { sortedOrder } from "../src/geometry/delaunay-triangulation";
 
-describe('input normalization', () => {
-  it('rejects duplicate coordinates', () => {
-    const result = normalizeInput([
-      { x: 1, y: 1 },
-      { x: 1, y: 1 },
+describe("input normalization", () => {
+  it("rejects duplicate coordinates", () => {
+    const result = normalizePoints([
+      { id: "a", name: "A", point: { x: 1, y: 1 }, sortedIndex: null },
+      { id: "b", name: "B", point: { x: 1, y: 1 }, sortedIndex: null },
     ]);
     expect(result.ok).toBe(false);
-    if (!result.ok) expect(result.error.details?.join(' ')).toContain('Duplicate point');
+    if (!result.ok)
+      expect(result.error.details?.join(" ")).toContain("duplicates");
   });
 
-  it('sorts points by x then y while preserving stable IDs', () => {
-    const result = normalizeInput([
-      { id: 'b', x: 2, y: 0 },
-      { id: 'a', x: 1, y: 3 },
-      { id: 'c', x: 1, y: 2 },
-    ]);
-    expect(result.ok).toBe(true);
-    if (result.ok) expect(result.value.sortedPoints.map((point) => point.id)).toEqual(['c', 'a', 'b']);
+  it("sorts point indices by x then y", () => {
+    expect(
+      sortedOrder([
+        { x: 2, y: 0 },
+        { x: 1, y: 3 },
+        { x: 1, y: 2 },
+      ]),
+    ).toEqual([2, 1, 0]);
   });
 });

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { GeometryCanvas } from './components/GeometryCanvas';
-import type { AlgorithmResult, InputPoint, Point2D } from './geometry/types';
-import { runNearestNeighborLab } from './geometry/runAlgorithm';
+import type { AlgorithmResult, AppPoint } from './app/types';
+import { tracePoint } from './app/types';
+import { runLab } from './app/runLab';
 import { filterTraceEvents, type TraceLevel } from './trace/recorder';
 import { projectTraceFrame } from './trace/projector';
 import type { TraceFrame } from './trace/frames';
@@ -10,15 +11,10 @@ import { defaultToggles, type VisualizationMode, type VisualizationToggles } fro
 const CANVAS_WIDTH = 860;
 const CANVAS_HEIGHT = 560;
 
-function pointFromInput(point: InputPoint, index: number): Point2D {
-  const id = point.id ?? `p${index + 1}`;
-  return { id, label: id.toUpperCase(), x: point.x, y: point.y };
-}
-
-function idleFrame(points: readonly InputPoint[]): TraceFrame {
+function idleFrame(points: readonly AppPoint[]): TraceFrame {
   return {
     index: -1,
-    points: points.map(pointFromInput),
+    points: points.map(tracePoint),
     visibleEdges: [],
     highlightedEdges: [],
     deletedEdges: [],
@@ -37,7 +33,7 @@ function idleFrame(points: readonly InputPoint[]): TraceFrame {
 }
 
 export default function App() {
-  const [points, setPoints] = useState<InputPoint[]>([]);
+  const [points, setPoints] = useState<AppPoint[]>([]);
   const [mode, setMode] = useState<VisualizationMode>('step');
   const [toggles, setToggles] = useState<VisualizationToggles>(defaultToggles);
   const [result, setResult] = useState<AlgorithmResult | null>(null);
@@ -68,7 +64,7 @@ export default function App() {
 
   function addPoint(x: number, y: number): void {
     const id = `p${points.length + 1}`;
-    setPoints((current) => [...current, { id, x: Math.round(x), y: Math.round(y) }]);
+    setPoints((current) => [...current, { id, name: `S${current.length + 1}`, point: { x: Math.round(x), y: Math.round(y) }, sortedIndex: null }]);
     setResult(null);
     setError(null);
     setStep(0);
@@ -78,8 +74,12 @@ export default function App() {
     const count = 18;
     const generated = Array.from({ length: count }, (_, index) => ({
       id: `p${index + 1}`,
-      x: 45 + Math.round(Math.random() * (CANVAS_WIDTH - 90)),
-      y: 45 + Math.round(Math.random() * (CANVAS_HEIGHT - 90)),
+      name: `S${index + 1}`,
+      point: {
+        x: 45 + Math.round(Math.random() * (CANVAS_WIDTH - 90)),
+        y: 45 + Math.round(Math.random() * (CANVAS_HEIGHT - 90)),
+      },
+      sortedIndex: null,
     }));
     setPoints(generated);
     setResult(null);
@@ -88,11 +88,17 @@ export default function App() {
   }
 
   function generateGrid(): void {
-    const generated: InputPoint[] = [];
+    const generated: AppPoint[] = [];
     let index = 1;
     for (let row = 0; row < 4; row += 1) {
       for (let column = 0; column < 5; column += 1) {
-        generated.push({ id: `p${index++}`, x: 150 + column * 110 + (row % 2) * 16, y: 110 + row * 85 });
+        generated.push({
+          id: `p${index}`,
+          name: `S${index}`,
+          point: { x: 150 + column * 110 + (row % 2) * 16, y: 110 + row * 85 },
+          sortedIndex: null,
+        });
+        index += 1;
       }
     }
     setPoints(generated);
@@ -113,7 +119,7 @@ export default function App() {
     setPlaying(false);
     const nextMode = points.length > 100 ? 'result' : effectiveMode;
     if (nextMode !== mode) setMode(nextMode);
-    const computed = runNearestNeighborLab(points, points.length > 100 ? 'phase' : traceLevel);
+    const computed = runLab(points, points.length > 100 ? 'phase' : traceLevel);
     if (!computed.ok) {
       setError([computed.error.message, ...(computed.error.details ?? [])].join(' '));
       setResult(null);
@@ -205,7 +211,7 @@ export default function App() {
             <h2>Status</h2>
             <dl>
               <dt>Points</dt><dd>{points.length}</dd>
-              <dt>Delaunay edges</dt><dd>{result?.delaunayEdges.length ?? 0}</dd>
+              <dt>Delaunay edges</dt><dd>{result?.edges.length ?? 0}</dd>
               <dt>Mode</dt><dd>{modeLabel}</dd>
               <dt>Step</dt><dd>{result ? `${effectiveMode === 'result' ? maxStep : step} / ${maxStep}` : 'not run'}</dd>
               <dt>Phase</dt><dd>{frame.currentPhase}</dd>
@@ -222,10 +228,10 @@ export default function App() {
           <h2>Nearest-Neighbor Relation</h2>
           <div className="result-grid">
             {result.nearestNeighbors.map((item) => (
-              <div key={item.pointId} className="result-pill">
-                <strong>{item.pointId.toUpperCase()}</strong>
-                <span>→ {item.neighborIds.map((id) => id.toUpperCase()).join(', ')}</span>
-                <small>d² = {item.distance2.toFixed(2)}</small>
+              <div key={item.point} className="result-pill">
+                <strong>{result.points[item.point]?.name ?? `#${item.point}`}</strong>
+                <span>→ {item.neighbors.map((index) => result.points[index]?.name ?? `#${index}`).join(', ')}</span>
+                <small>d² = {item.distanceSquared.toFixed(2)}</small>
               </div>
             ))}
           </div>

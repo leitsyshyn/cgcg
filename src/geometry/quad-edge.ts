@@ -1,4 +1,21 @@
-import type { DirectedEdge, Edge, QuadEdge } from './types';
+import type { Edge } from "./types";
+
+interface QuadEdge {
+  readonly edges: readonly [
+    DirectedEdge,
+    DirectedEdge,
+    DirectedEdge,
+    DirectedEdge,
+  ];
+}
+
+export interface DirectedEdge {
+  origin: number | null;
+  next: DirectedEdge;
+  quad: QuadEdge;
+  index: 0 | 1 | 2 | 3;
+  deleted: boolean;
+}
 
 export class QuadEdgeSubdivision {
   private readonly quads: QuadEdge[] = [];
@@ -82,7 +99,7 @@ export class QuadEdgeSubdivision {
 
   orig(edge: DirectedEdge): number {
     if (edge.origin === null) {
-      throw new Error('Directed edge has no primal origin.');
+      throw new Error("Directed edge has no primal origin.");
     }
     return edge.origin;
   }
@@ -110,7 +127,10 @@ export class QuadEdgeSubdivision {
     return edges;
   }
 
-  private createDirected(index: 0 | 1 | 2 | 3, origin: number | null): DirectedEdge {
+  private createDirected(
+    index: 0 | 1 | 2 | 3,
+    origin: number | null,
+  ): DirectedEdge {
     return {
       index,
       origin,

@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { TraceRecorder, filterTraceEvents } from '../src/trace/recorder';
 import { projectTraceFrame } from '../src/trace/projector';
-import type { Point2D } from '../src/geometry/types';
+import type { TracePoint } from '../src/trace/events';
 
-function p(id: string, x: number, y: number): Point2D {
-  return { id, label: id.toUpperCase(), x, y };
+function p(id: string, x: number, y: number): TracePoint {
+  return { id, label: id.toUpperCase(), sortedLabel: null, x, y };
 }
 
 describe('trace recording and projection', () => {

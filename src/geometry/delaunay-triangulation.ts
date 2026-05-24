@@ -1,6 +1,6 @@
-import type { DirectedEdge, Point, Triangulation } from './types';
-import { EPSILON, inCircle, orientation } from './predicates';
-import { QuadEdgeSubdivision } from './quadEdge';
+import type { Point, Triangulation } from "./types";
+import { insideCircumcircle, orientationSign } from "./predicates";
+import { QuadEdgeSubdivision, type DirectedEdge } from "./quad-edge";
 
 interface SortedPoint extends Point {
   readonly index: number;
@@ -19,10 +19,16 @@ export function sortedOrder(points: readonly Point[]): readonly number[] {
 
 export function delaunayTriangulation(points: readonly Point[]): Triangulation {
   if (points.length < 2) {
-    throw new Error('At least two points are required for Delaunay triangulation.');
+    throw new Error(
+      "At least two points are required for Delaunay triangulation.",
+    );
   }
 
-  const sortedPoints = sortedOrder(points).map((index) => ({ ...points[index], index }));
+  const sortedPoints = sortedOrder(points).map((index) => {
+    const value = points[index];
+    if (!value) throw new Error(`Point ${index} does not exist.`);
+    return { x: value.x, y: value.y, index };
+  });
   const subdivision = new QuadEdgeSubdivision();
   divide(sortedPoints, 0, sortedPoints.length, subdivision, points);
 
@@ -44,7 +50,7 @@ function divide(
   if (count === 2) {
     const a = sortedPoints[start];
     const b = sortedPoints[start + 1];
-    if (!a || !b) throw new Error('Invalid two-point base case.');
+    if (!a || !b) throw new Error("Invalid two-point base case.");
     const edge = subdivision.makeEdge(a.index, b.index);
     return { ldo: edge, rdo: subdivision.sym(edge) };
   }
@@ -53,19 +59,20 @@ function divide(
     const aPoint = sortedPoints[start];
     const bPoint = sortedPoints[start + 1];
     const cPoint = sortedPoints[start + 2];
-    if (!aPoint || !bPoint || !cPoint) throw new Error('Invalid three-point base case.');
+    if (!aPoint || !bPoint || !cPoint)
+      throw new Error("Invalid three-point base case.");
 
     const a = subdivision.makeEdge(aPoint.index, bPoint.index);
     const b = subdivision.makeEdge(bPoint.index, cPoint.index);
     subdivision.splice(subdivision.sym(a), b);
 
-    const orient = orientation(aPoint, bPoint, cPoint);
-    if (orient > EPSILON) {
+    const orientation = orientationSign(aPoint, bPoint, cPoint);
+    if (orientation > 0) {
       subdivision.connect(b, a);
       return { ldo: a, rdo: subdivision.sym(b) };
     }
 
-    if (orient < -EPSILON) {
+    if (orientation < 0) {
       const c = subdivision.connect(b, a);
       return { ldo: subdivision.sym(c), rdo: c };
     }
@@ -118,13 +125,13 @@ function merge(
     if (valid(leftCandidate, base, subdivision, points)) {
       while (true) {
         const next = subdivision.onext(leftCandidate);
-        const check = inCircle(
+        const inside = insideCircumcircle(
           point(points, subdivision.dest(base)),
           point(points, subdivision.orig(base)),
           point(points, subdivision.dest(leftCandidate)),
           point(points, subdivision.dest(next)),
         );
-        if (check <= EPSILON) break;
+        if (!inside) break;
         const deleted = leftCandidate;
         leftCandidate = next;
         subdivision.deleteEdge(deleted);
@@ -135,13 +142,13 @@ function merge(
     if (valid(rightCandidate, base, subdivision, points)) {
       while (true) {
         const previous = subdivision.oprev(rightCandidate);
-        const check = inCircle(
+        const inside = insideCircumcircle(
           point(points, subdivision.dest(base)),
           point(points, subdivision.orig(base)),
           point(points, subdivision.dest(rightCandidate)),
           point(points, subdivision.dest(previous)),
         );
-        if (check <= EPSILON) break;
+        if (!inside) break;
         const deleted = rightCandidate;
         rightCandidate = previous;
         subdivision.deleteEdge(deleted);
@@ -155,16 +162,19 @@ function merge(
     const useRight =
       !leftValid ||
       (rightValid &&
-        inCircle(
+        insideCircumcircle(
           point(points, subdivision.dest(leftCandidate)),
           point(points, subdivision.orig(leftCandidate)),
           point(points, subdivision.orig(rightCandidate)),
           point(points, subdivision.dest(rightCandidate)),
-        ) > EPSILON);
+        ));
 
     base = useRight
       ? subdivision.connect(rightCandidate, subdivision.sym(base))
-      : subdivision.connect(subdivision.sym(base), subdivision.sym(leftCandidate));
+      : subdivision.connect(
+          subdivision.sym(base),
+          subdivision.sym(leftCandidate),
+        );
   }
 
   return { ldo, rdo };
@@ -175,15 +185,42 @@ function pointOrder(a: Point | undefined, b: Point | undefined): number {
   return a.x - b.x || a.y - b.y;
 }
 
-function leftOf(index: number, edge: DirectedEdge, subdivision: QuadEdgeSubdivision, points: readonly Point[]): boolean {
-  return orientation(point(points, subdivision.orig(edge)), point(points, subdivision.dest(edge)), point(points, index)) > EPSILON;
+function leftOf(
+  index: number,
+  edge: DirectedEdge,
+  subdivision: QuadEdgeSubdivision,
+  points: readonly Point[],
+): boolean {
+  return (
+    orientationSign(
+      point(points, subdivision.orig(edge)),
+      point(points, subdivision.dest(edge)),
+      point(points, index),
+    ) > 0
+  );
 }
 
-function rightOf(index: number, edge: DirectedEdge, subdivision: QuadEdgeSubdivision, points: readonly Point[]): boolean {
-  return orientation(point(points, subdivision.orig(edge)), point(points, subdivision.dest(edge)), point(points, index)) < -EPSILON;
+function rightOf(
+  index: number,
+  edge: DirectedEdge,
+  subdivision: QuadEdgeSubdivision,
+  points: readonly Point[],
+): boolean {
+  return (
+    orientationSign(
+      point(points, subdivision.orig(edge)),
+      point(points, subdivision.dest(edge)),
+      point(points, index),
+    ) < 0
+  );
 }
 
-function valid(edge: DirectedEdge, base: DirectedEdge, subdivision: QuadEdgeSubdivision, points: readonly Point[]): boolean {
+function valid(
+  edge: DirectedEdge,
+  base: DirectedEdge,
+  subdivision: QuadEdgeSubdivision,
+  points: readonly Point[],
+): boolean {
   if (edge.deleted) return false;
   return rightOf(subdivision.dest(edge), base, subdivision, points);
 }

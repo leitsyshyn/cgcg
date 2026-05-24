@@ -1,6 +1,11 @@
-import type { AdjacencyGraph, Edge } from './types';
+import type { Edge } from "./types";
 
-export function adjacencyGraph(pointCount: number, edges: readonly Edge[]): AdjacencyGraph {
+export type AdjacencyGraph = ReadonlyMap<number, ReadonlySet<number>>;
+
+export function adjacencyGraph(
+  pointCount: number,
+  edges: readonly Edge[],
+): AdjacencyGraph {
   const graph = new Map<number, Set<number>>();
 
   for (let index = 0; index < pointCount; index += 1) {
