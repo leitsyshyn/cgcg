@@ -1,9 +1,9 @@
 import type { Point, Triangulation } from "./types";
 import { circumcircle, insideCircumcircle, orientationSign } from "./predicates";
-import { QuadEdgeSubdivision, type DirectedEdge } from "./quad-edge";
+import { QuadEdgeSubdivision, type DirectedEdge, type TopologyEdge } from "./quad-edge";
 import type { GeometryTrace } from "./trace";
 import { sortedOrder } from "./order";
-import type { TraceTriangle } from "../trace/types";
+import type { TraceEventInput, TracePhase, TraceTriangle } from "../trace/types";
 
 interface SortedPoint extends Point {
   readonly index: number;
@@ -51,11 +51,14 @@ function divide(
     const a = sortedPoints[start];
     const b = sortedPoints[start + 1];
     if (!a || !b) throw new Error("Invalid two-point base case.");
-    trace?.phase("base-case", `Base case with two points: ${trace.pointLabel(a.index)}, ${trace.pointLabel(b.index)}.`, {
-      pointIds: [trace.pointId(a.index), trace.pointId(b.index)],
-      subsetIds: [trace.pointId(a.index), trace.pointId(b.index)],
-    });
     const edge = subdivision.makeEdge(a.index, b.index);
+    traceMeshPhase(
+      "base-case",
+      `Built base mesh for two points: ${tracePointLabel(a.index, trace)}, ${tracePointLabel(b.index, trace)}.`,
+      subset,
+      subdivision,
+      trace,
+    );
     return { ldo: edge, rdo: subdivision.sym(edge) };
   }
 
@@ -65,15 +68,6 @@ function divide(
     const cPoint = sortedPoints[start + 2];
     if (!aPoint || !bPoint || !cPoint)
       throw new Error("Invalid three-point base case.");
-    trace?.phase(
-      "base-case",
-      `Base case with three points: ${trace.pointLabel(aPoint.index)}, ${trace.pointLabel(bPoint.index)}, ${trace.pointLabel(cPoint.index)}.`,
-      {
-        pointIds: [trace.pointId(aPoint.index), trace.pointId(bPoint.index), trace.pointId(cPoint.index)],
-        subsetIds: [trace.pointId(aPoint.index), trace.pointId(bPoint.index), trace.pointId(cPoint.index)],
-      },
-    );
-
     const a = subdivision.makeEdge(aPoint.index, bPoint.index);
     const b = subdivision.makeEdge(bPoint.index, cPoint.index);
     subdivision.splice(subdivision.sym(a), b);
@@ -90,6 +84,13 @@ function divide(
         activeTriangle: traceTriangle(aPoint.index, bPoint.index, cPoint.index, trace),
         edgeIds: [subdivision.edgeId(a), subdivision.edgeId(b), subdivision.edgeId(c)],
       });
+      traceMeshPhase(
+        "base-case",
+        `Built triangular base mesh for ${tracePointLabel(aPoint.index, trace)}, ${tracePointLabel(bPoint.index, trace)}, ${tracePointLabel(cPoint.index, trace)}.`,
+        subset,
+        subdivision,
+        trace,
+      );
       return { ldo: a, rdo: subdivision.sym(b) };
     }
 
@@ -99,9 +100,23 @@ function divide(
         activeTriangle: traceTriangle(aPoint.index, cPoint.index, bPoint.index, trace),
         edgeIds: [subdivision.edgeId(a), subdivision.edgeId(b), subdivision.edgeId(c)],
       });
+      traceMeshPhase(
+        "base-case",
+        `Built triangular base mesh for ${tracePointLabel(aPoint.index, trace)}, ${tracePointLabel(bPoint.index, trace)}, ${tracePointLabel(cPoint.index, trace)}.`,
+        subset,
+        subdivision,
+        trace,
+      );
       return { ldo: subdivision.sym(c), rdo: c };
     }
 
+    traceMeshPhase(
+      "base-case",
+      `Built collinear base mesh for ${tracePointLabel(aPoint.index, trace)}, ${tracePointLabel(bPoint.index, trace)}, ${tracePointLabel(cPoint.index, trace)}.`,
+      subset,
+      subdivision,
+      trace,
+    );
     return { ldo: a, rdo: subdivision.sym(b) };
   }
 
@@ -138,10 +153,9 @@ function merge(
   let ldi = left.rdo;
   let rdi = right.ldo;
 
-  trace?.phase("merge-start", "Started merge: find lower common tangent, then stitch the two Delaunay triangulations.", {
+  trace?.phase("merge-start", "Started merge of two completed submeshes.", {
     subsetIds: subsetIds(subset, trace),
     splitX,
-    edgeIds: [subdivision.edgeId(ldi), subdivision.edgeId(rdi)],
   });
 
   while (true) {
@@ -163,13 +177,13 @@ function merge(
     break;
   }
 
-  trace?.phase("lower-tangent-found", "Found the lower common tangent.", {
+  trace?.detailed("lower-tangent-found", "Found the lower common tangent.", {
     activeBaseEdge: [tracePointId(subdivision.orig(ldi), trace), tracePointId(subdivision.orig(rdi), trace)],
     edgeIds: [subdivision.edgeId(ldi), subdivision.edgeId(rdi)],
   });
 
   let base = subdivision.connect(subdivision.sym(rdi), ldi);
-  trace?.phase("base-edge-created", "Inserted the initial base edge across the split.", {
+  trace?.detailed("base-edge-created", "Inserted the initial base edge across the split.", {
     edgeIds: [subdivision.edgeId(base)],
     activeBaseEdge: subdivision.edgePointPair(base),
   });
@@ -284,9 +298,13 @@ function merge(
     });
   }
 
-  trace?.phase("merge-complete", "Completed merge of the two recursively built triangulations.", {
-    subsetIds: subsetIds(subset, trace),
-  });
+  traceMeshPhase(
+    "merge-complete",
+    "Completed merged submesh for this recursive region.",
+    subset,
+    subdivision,
+    trace,
+  );
 
   return { ldo, rdo };
 }
@@ -345,10 +363,41 @@ function tracePointId(index: number, trace: GeometryTrace | undefined): string {
   return trace?.pointId(index) ?? String(index);
 }
 
+function tracePointLabel(index: number, trace: GeometryTrace | undefined): string {
+  return trace?.pointLabel(index) ?? `point ${index}`;
+}
+
 function traceTriangle(a: number, b: number, c: number, trace: GeometryTrace | undefined): TraceTriangle {
   return {
     a: tracePointId(a, trace),
     b: tracePointId(b, trace),
     c: tracePointId(c, trace),
+  };
+}
+
+function traceMeshPhase(
+  phase: TracePhase,
+  message: string,
+  subset: readonly SortedPoint[],
+  subdivision: QuadEdgeSubdivision,
+  trace: GeometryTrace | undefined,
+  payload: TraceEventInput = {},
+): void {
+  if (!trace) return;
+  const subsetSet = new Set(subset.map((item) => item.index));
+  const edges = trace.phaseSnapshots ? subdivision.edgesFor(subsetSet).map((edge) => traceEdge(edge, trace)) : undefined;
+  trace.phase(phase, message, {
+    ...payload,
+    pointIds: subsetIds(subset, trace),
+    subsetIds: subsetIds(subset, trace),
+    ...(edges ? { edges, edgeMode: "append", edgeIds: edges.map((edge) => edge.id) } : {}),
+  });
+}
+
+function traceEdge(edge: TopologyEdge, trace: GeometryTrace) {
+  return {
+    id: edge.id,
+    from: trace.pointId(edge.a),
+    to: trace.pointId(edge.b),
   };
 }

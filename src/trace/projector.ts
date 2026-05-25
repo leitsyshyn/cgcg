@@ -30,7 +30,7 @@ export function projectTraceFrame(events: readonly TraceEvent[], eventIndex: num
     if (event.points) points = event.points;
     if (event.edge) edgeMap.set(event.edge.id, event.edge);
     if (event.edges) {
-      edgeMap.clear();
+      if (event.edgeMode !== 'append') edgeMap.clear();
       event.edges.forEach((edge) => edgeMap.set(edge.id, edge));
     }
     if (event.phase === 'edge-deleted' && event.edge) {

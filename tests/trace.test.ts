@@ -47,6 +47,16 @@ describe('trace recording and projection', () => {
     expect(frame.nearestArrows).toEqual([{ from: 'a', to: 'b' }]);
   });
 
+  it('appends phase snapshot edges without discarding previous phase visuals', () => {
+    const recorder = new TraceRecorder('phase');
+    recorder.phase('input-normalized', 'normalized', { points: [p('a', 0, 0), p('b', 10, 0), p('c', 20, 0)] });
+    recorder.phase('base-case', 'first base', { edges: [{ id: 'e1', from: 'a', to: 'b' }], edgeMode: 'append' });
+    recorder.phase('base-case', 'second base', { edges: [{ id: 'e2', from: 'b', to: 'c' }], edgeMode: 'append' });
+
+    const frame = projectTraceFrame(recorder.events, recorder.events.length - 1);
+    expect(frame.visibleEdges.map((edge) => edge.id)).toEqual(['e1', 'e2']);
+  });
+
   it('projects detailed geometry states used by the canvas', () => {
     const recorder = new TraceRecorder('detailed');
     recorder.phase('input-normalized', 'normalized', { points: [p('a', 0, 0), p('b', 10, 0), p('c', 0, 10)] });
@@ -110,6 +120,18 @@ describe('trace recording and projection', () => {
     expect(phase.value.trace.every((event) => event.level === 'phase')).toBe(true);
     expect(phase.value.trace.map((event) => event.phase)).toContain('recursive-split');
     expect(phase.value.trace.map((event) => event.phase)).toContain('merge-start');
+    expect(phase.value.trace.map((event) => event.phase)).toContain('base-case');
+    expect(phase.value.trace.map((event) => event.phase)).toContain('merge-complete');
+    expect(phase.value.trace.map((event) => event.phase)).not.toContain('lower-tangent-found');
+    expect(phase.value.trace.map((event) => event.phase)).not.toContain('base-edge-created');
     expect(phase.value.trace.map((event) => event.phase)).not.toContain('edge-created');
+    expect(phase.value.trace.some((event) => event.phase === 'base-case' && event.edges && event.edges.length > 0)).toBe(true);
+    expect(phase.value.trace.some((event) => event.phase === 'merge-complete' && event.edges && event.edges.length > 0)).toBe(true);
+    expect(
+      phase.value.trace
+        .filter((event) => event.phase === 'base-case' || event.phase === 'merge-complete')
+        .filter((event) => event.edges)
+        .every((event) => event.edgeMode === 'append'),
+    ).toBe(true);
   });
 });

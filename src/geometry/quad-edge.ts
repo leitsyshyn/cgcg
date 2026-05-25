@@ -2,6 +2,10 @@ import type { Edge } from "./types";
 import type { GeometryTrace } from "./trace";
 import type { TraceEdge } from "../trace/types";
 
+export interface TopologyEdge extends Edge {
+  readonly id: string;
+}
+
 interface QuadEdge {
   readonly id: string;
   readonly edges: readonly [
@@ -165,6 +169,25 @@ export class QuadEdgeSubdivision {
       if (seen.has(key)) continue;
       seen.add(key);
       edges.push({ a, b });
+    }
+
+    return edges;
+  }
+
+  edgesFor(vertices: ReadonlySet<number>): readonly TopologyEdge[] {
+    const edges: TopologyEdge[] = [];
+    const seen = new Set<string>();
+
+    for (const quad of this.quads) {
+      const primal = quad.edges[0];
+      if (primal.deleted) continue;
+      const a = this.orig(primal);
+      const b = this.dest(primal);
+      if (a === b || !vertices.has(a) || !vertices.has(b)) continue;
+      const key = a < b ? `${a}:${b}` : `${b}:${a}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      edges.push({ id: this.edgeId(primal), a, b });
     }
 
     return edges;

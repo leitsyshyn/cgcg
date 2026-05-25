@@ -42,6 +42,7 @@ export function runLab(
   const order = sortedOrder(points);
   const geometryTrace: GeometryTrace | undefined = traceLevel !== "off"
     ? {
+        phaseSnapshots: traceLevel === "phase",
         pointId: (index) => points[index]?.id ?? String(index),
         pointLabel: (index) => points[index]?.name ?? `point ${index + 1}`,
         phase: (phase, message, payload) => trace.phase(phase, message, payload),

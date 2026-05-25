@@ -73,6 +73,7 @@ export interface TraceEventPayload {
   readonly rightIds?: readonly PointId[];
   readonly edge?: TraceEdge;
   readonly edges?: readonly TraceEdge[];
+  readonly edgeMode?: "append" | "replace";
   readonly edgeIds?: readonly EdgeId[];
   readonly splitX?: number;
   readonly depth?: number;

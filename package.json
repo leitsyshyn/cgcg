@@ -13,7 +13,6 @@
   "dependencies": {
     "@vitejs/plugin-react": "latest",
     "d3": "latest",
-    "openrtk": "^0.1.0",
     "react": "latest",
     "react-dom": "latest",
     "vite": "latest"
