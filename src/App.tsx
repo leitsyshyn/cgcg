@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import { ChevronLeft, ChevronRight, Pause, Play, SkipBack } from 'lucide-react';
+import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { ChevronLeft, ChevronRight, Cpu, Eraser, GitMerge, Pause, Play, Sparkles, Target, Upload, Waypoints } from 'lucide-react';
 import { GeometryCanvas } from './components/GeometryCanvas';
 import { ResultPanel } from './components/ResultPanel';
 import { TraceLog } from './components/TraceLog';
@@ -18,13 +18,11 @@ import {
   type VisualizationMode,
   type VisualizationToggles,
 } from './app/visualization';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardAction, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Field, FieldGroup, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field';
-import { Separator } from '@/components/ui/separator';
 import { Slider } from '@/components/ui/slider';
-import { Switch } from '@/components/ui/switch';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
 const CANVAS_WIDTH = 960;
@@ -52,6 +50,7 @@ function idleFrame(points: readonly AppPoint[]): TraceFrame {
 }
 
 export default function App() {
+  const uploadInputRef = useRef<HTMLInputElement | null>(null);
   const [points, setPoints] = useState<AppPoint[]>([]);
   const [mode, setMode] = useState<VisualizationMode>('step');
   const [toggles, setToggles] = useState<VisualizationToggles>(defaultToggles);
@@ -103,6 +102,19 @@ export default function App() {
     setPlaying(false);
   }
 
+  function replacePoints(nextPoints: readonly { x: number; y: number }[]): void {
+    setPoints(
+      nextPoints.map((point, index) => ({
+        id: `p${index + 1}`,
+        name: `S${index + 1}`,
+        x: Math.round(point.x),
+        y: Math.round(point.y),
+        sortedIndex: null,
+      })),
+    );
+    resetExecution();
+  }
+
   function addPoint(x: number, y: number): void {
     setPoints((current) => [
       ...current,
@@ -119,42 +131,42 @@ export default function App() {
 
   function generateRandom(): void {
     const count = 18;
-    setPoints(
-      Array.from({ length: count }, (_, index) => ({
-        id: `p${index + 1}`,
-        name: `S${index + 1}`,
+    replacePoints(
+      Array.from({ length: count }, () => ({
         x: 60 + Math.round(Math.random() * (CANVAS_WIDTH - 120)),
         y: 60 + Math.round(Math.random() * (CANVAS_HEIGHT - 120)),
-        sortedIndex: null,
       })),
     );
-    resetExecution();
-  }
-
-  function generateGrid(): void {
-    const generated: AppPoint[] = [];
-    let index = 1;
-
-    for (let row = 0; row < 4; row += 1) {
-      for (let column = 0; column < 5; column += 1) {
-        generated.push({
-          id: `p${index}`,
-          name: `S${index}`,
-          x: 170 + column * 120 + (row % 2) * 20,
-          y: 130 + row * 95,
-          sortedIndex: null,
-        });
-        index += 1;
-      }
-    }
-
-    setPoints(generated);
-    resetExecution();
   }
 
   function clear(): void {
     setPoints([]);
     resetExecution();
+  }
+
+  function openUpload(): void {
+    uploadInputRef.current?.click();
+  }
+
+  async function uploadPoints(event: ChangeEvent<HTMLInputElement>): Promise<void> {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const uploaded = parseUploadedPoints(text);
+      if (uploaded.length < 2) {
+        throw new Error('Upload must contain at least two points.');
+      }
+      replacePoints(uploaded);
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : String(uploadError));
+      setResult(null);
+      setResultTraceLevel(null);
+      setStep(0);
+      setPlaying(false);
+    }
   }
 
   function run(): void {
@@ -205,17 +217,20 @@ export default function App() {
 
   return (
     <main className="dark h-svh overflow-hidden bg-background text-foreground">
-      <div className="grid h-full grid-cols-1 gap-3 p-3 xl:grid-cols-[minmax(0,1fr)_340px]">
+      <input
+        ref={uploadInputRef}
+        type="file"
+        accept=".txt,.csv,.json"
+        className="hidden"
+        onChange={(event) => {
+          void uploadPoints(event);
+        }}
+      />
+
+      <div className="grid h-full grid-cols-1 gap-3 p-3 xl:grid-cols-[minmax(0,1fr)_360px]">
         <section className="grid min-h-0 gap-3 xl:grid-rows-[minmax(0,1fr)_220px]">
-          <Card className="min-h-0">
-            <CardHeader>
-              <CardAction className="flex flex-wrap justify-end gap-2">
-                <Badge variant="outline">{points.length} point(s)</Badge>
-                <Badge variant="outline">step {result ? `${activeTraceIndex + 1}/${events.length}` : '0/0'}</Badge>
-                {result ? <Badge variant="outline">{effectiveMode}</Badge> : null}
-              </CardAction>
-            </CardHeader>
-            <CardContent className="flex min-h-0 flex-col p-0">
+          <Card className="min-h-0 py-0">
+            <CardContent className="h-full min-h-0 p-0">
               <GeometryCanvas
                 frame={frame}
                 toggles={toggles}
@@ -226,30 +241,47 @@ export default function App() {
                 onAddPoint={addPoint}
               />
             </CardContent>
-            <CardFooter>
-              <p className="truncate text-sm text-muted-foreground">{frame.explanation}</p>
-            </CardFooter>
           </Card>
 
-          <TraceLog events={visibleTraceEvents} points={result?.points ?? points} activeEventId={activeEventId} />
+          <TraceLog
+            events={visibleTraceEvents}
+            points={result?.points ?? points}
+            activeEventId={activeEventId}
+            pointCount={points.length}
+            stepText={result ? `${activeTraceIndex + 1}/${events.length}` : '0/0'}
+            phase={frame.currentPhase}
+            mode={effectiveMode}
+            runtimeMs={result?.runtimeMs ?? null}
+            explanation={frame.explanation}
+          />
         </section>
 
-        <aside className="grid min-h-0 gap-3 xl:grid-rows-[minmax(0,1fr)_220px]">
-          <Card className="min-h-0">
-            <CardContent className="h-full">
-              <div className="flex h-full flex-col gap-4 overflow-hidden">
-                <section className="flex flex-col gap-2">
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button type="button" variant="outline" onClick={generateRandom}>Random set</Button>
-                    <Button type="button" variant="outline" onClick={generateGrid}>Structured grid</Button>
-                    <Button type="button" variant="outline" onClick={clear}>Clear</Button>
-                    <Button type="button" onClick={run} disabled={points.length < 2}>Run algorithm</Button>
-                  </div>
-                </section>
+        <aside className="grid min-h-0 gap-3 xl:grid-rows-[auto_minmax(0,1fr)]">
+          <Card className="py-0">
+            <CardContent className="p-3">
+              <div className="flex flex-col gap-3">
+                <FieldSet>
+                  <FieldLegend variant="label">Input</FieldLegend>
+                  <FieldGroup className="gap-2">
+                    <div className="grid grid-cols-3 gap-2">
+                      <Button type="button" variant="outline" size="sm" className="h-9" onClick={openUpload}>
+                        <Upload data-icon="inline-start" />
+                        Upload
+                      </Button>
+                      <Button type="button" variant="outline" size="sm" className="h-9" onClick={generateRandom}>
+                        <Sparkles data-icon="inline-start" />
+                        Random
+                      </Button>
+                      <Button type="button" variant="outline" size="sm" className="h-9" onClick={clear}>
+                        <Eraser data-icon="inline-start" />
+                        Clear
+                      </Button>
+                    </div>
+                  </FieldGroup>
+                </FieldSet>
 
-                <Separator />
-
-                <section className="flex flex-col gap-2">
+                <FieldSet>
+                  <FieldLegend variant="label">Mode</FieldLegend>
                   <ToggleGroup
                     type="single"
                     variant="outline"
@@ -259,137 +291,243 @@ export default function App() {
                     }}
                     className="grid w-full grid-cols-3"
                   >
-                    <ToggleGroupItem value="step" className="w-full" disabled={points.length > 100}>Step</ToggleGroupItem>
-                    <ToggleGroupItem value="phase" className="w-full">Phase</ToggleGroupItem>
-                    <ToggleGroupItem value="result" className="w-full">Result</ToggleGroupItem>
+                    <ToggleGroupItem value="step" className="h-9 w-full text-sm" disabled={points.length > 100}>
+                      <Waypoints data-icon="inline-start" />
+                      Step
+                    </ToggleGroupItem>
+                    <ToggleGroupItem value="phase" className="h-9 w-full text-sm">
+                      <GitMerge data-icon="inline-start" />
+                      Phase
+                    </ToggleGroupItem>
+                    <ToggleGroupItem value="result" className="h-9 w-full text-sm">
+                      <Target data-icon="inline-start" />
+                      Result
+                    </ToggleGroupItem>
                   </ToggleGroup>
-                  {points.length > 100 ? <p className="text-xs text-muted-foreground">Detailed trace disabled above 100 points.</p> : null}
-                  {mode === 'step' && resultTraceLevel === null && !result ? <p className="text-xs text-muted-foreground">Run again after switching back to step.</p> : null}
-                </section>
+                </FieldSet>
 
-                <Separator />
+                <FieldSet>
+                  <FieldLegend variant="label">Playback</FieldLegend>
+                  <FieldGroup className="gap-3">
+                    <div className="grid grid-cols-3 gap-2">
+                      <Button type="button" variant="outline" size="sm" className="h-9" onClick={() => setStep((value) => Math.max(0, value - 1))} disabled={!result || effectiveMode === 'result'}>
+                        <ChevronLeft data-icon="inline-start" />
+                        Prev
+                      </Button>
+                      <Button type="button" variant="outline" size="sm" className="h-9" onClick={() => setPlaying((value) => !value)} disabled={!result || effectiveMode === 'result'}>
+                        {playing ? <Pause data-icon="inline-start" /> : <Play data-icon="inline-start" />}
+                        {playing ? 'Pause' : 'Play'}
+                      </Button>
+                      <Button type="button" variant="outline" size="sm" className="h-9" onClick={() => setStep((value) => Math.min(maxStep, value + 1))} disabled={!result || effectiveMode === 'result'}>
+                        Next
+                        <ChevronRight data-icon="inline-end" />
+                      </Button>
+                    </div>
 
-                <section className="flex flex-col gap-3">
-                  <div className="flex items-center justify-center gap-2">
-                    <Button type="button" variant="outline" size="icon-sm" aria-label="Reset to start" onClick={() => setStep(0)} disabled={!result}>
-                      <SkipBack data-icon="inline-start" />
-                    </Button>
-                    <Button type="button" variant="outline" size="icon-sm" aria-label="Previous step" onClick={() => setStep((value) => Math.max(0, value - 1))} disabled={!result || effectiveMode === 'result'}>
-                      <ChevronLeft data-icon="inline-start" />
-                    </Button>
-                    <Button type="button" variant="outline" size="icon-sm" aria-label={playing ? 'Pause playback' : 'Play playback'} onClick={() => setPlaying((value) => !value)} disabled={!result || effectiveMode === 'result'}>
-                      {playing ? <Pause data-icon="inline-start" /> : <Play data-icon="inline-start" />}
-                    </Button>
-                    <Button type="button" variant="outline" size="icon-sm" aria-label="Next step" onClick={() => setStep((value) => Math.min(maxStep, value + 1))} disabled={!result || effectiveMode === 'result'}>
-                      <ChevronRight data-icon="inline-start" />
-                    </Button>
-                  </div>
-
-                  <FieldSet>
-                    <FieldLegend variant="label">Playback</FieldLegend>
-                    <FieldGroup>
-                      <Field>
-                        <FieldLabel htmlFor="speed-slider">Speed</FieldLabel>
-                        <Slider
-                          id="speed-slider"
-                          min={100}
-                          max={1600}
-                          step={50}
-                          value={[1700 - speedMs]}
-                          onValueChange={(value) => setSpeedMs(1700 - (value[0] ?? 1250))}
-                        />
-                      </Field>
-                      <Field>
-                        <FieldLabel htmlFor="step-slider">Step</FieldLabel>
-                        <Slider
-                          id="step-slider"
-                          min={0}
-                          max={Math.max(maxStep, 1)}
-                          step={1}
-                          value={[Math.max(0, activeTraceIndex)]}
-                          onValueChange={(value) => setStep(value[0] ?? 0)}
-                          disabled={!result || effectiveMode === 'result'}
-                        />
-                      </Field>
-                      <div className="text-xs text-muted-foreground">
-                        {result ? `${activeTraceIndex + 1} / ${events.length}` : 'No trace'}
+                    <Field>
+                      <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                        <FieldLabel htmlFor="step-slider">Steps</FieldLabel>
+                        <span>{result ? `${activeTraceIndex + 1}/${events.length}` : '0/0'}</span>
                       </div>
+                      <Slider
+                        id="step-slider"
+                        min={0}
+                        max={Math.max(maxStep, 1)}
+                        step={1}
+                        value={[Math.max(0, activeTraceIndex)]}
+                        onValueChange={(value) => setStep(value[0] ?? 0)}
+                        disabled={!result || effectiveMode === 'result'}
+                      />
+                    </Field>
+
+                    <Field>
+                      <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                        <FieldLabel htmlFor="speed-slider">Speed</FieldLabel>
+                        <span>{Math.round(((1700 - speedMs - 100) / 1500) * 100)}%</span>
+                      </div>
+                      <Slider
+                        id="speed-slider"
+                        min={100}
+                        max={1600}
+                        step={50}
+                        value={[1700 - speedMs]}
+                        onValueChange={(value) => setSpeedMs(1700 - (value[0] ?? 1250))}
+                      />
+                    </Field>
+                  </FieldGroup>
+                </FieldSet>
+
+                <div className="grid gap-3 xl:grid-cols-2 xl:gap-4">
+                  <FieldSet>
+                    <FieldLegend variant="label">Point labels</FieldLegend>
+                    <FieldGroup className="gap-2">
+                      <Field orientation="horizontal">
+                        <Checkbox id="input-labels" checked={pointLabelOptions.inputLabels} onCheckedChange={(checked) => updatePointLabels('inputLabels', checked === true)} />
+                        <FieldLabel htmlFor="input-labels">Input</FieldLabel>
+                      </Field>
+                      <Field orientation="horizontal">
+                        <Checkbox id="sorted-labels" checked={pointLabelOptions.sortedLabels} onCheckedChange={(checked) => updatePointLabels('sortedLabels', checked === true)} />
+                        <FieldLabel htmlFor="sorted-labels">Sorted</FieldLabel>
+                      </Field>
+                      <Field orientation="horizontal">
+                        <Checkbox id="coordinate-labels" checked={pointLabelOptions.coordinates} onCheckedChange={(checked) => updatePointLabels('coordinates', checked === true)} />
+                        <FieldLabel htmlFor="coordinate-labels">(x; y)</FieldLabel>
+                      </Field>
                     </FieldGroup>
                   </FieldSet>
-                </section>
 
-                <Separator />
+                  <FieldSet>
+                    <FieldLegend variant="label">Edge labels</FieldLegend>
+                    <FieldGroup className="gap-2">
+                      <Field orientation="horizontal">
+                        <Checkbox id="edge-pair-labels" checked={edgeLabelOptions.pairLabels} onCheckedChange={(checked) => updateEdgeLabels('pairLabels', checked === true)} />
+                        <FieldLabel htmlFor="edge-pair-labels">P1-P2</FieldLabel>
+                      </Field>
+                      <Field orientation="horizontal">
+                        <Checkbox id="edge-id-labels" checked={edgeLabelOptions.idLabels} onCheckedChange={(checked) => updateEdgeLabels('idLabels', checked === true)} />
+                        <FieldLabel htmlFor="edge-id-labels">E1</FieldLabel>
+                      </Field>
+                    </FieldGroup>
+                  </FieldSet>
 
-                <FieldSet>
-                  <FieldLegend>Labels</FieldLegend>
-                  <FieldGroup className="gap-4">
-                    <Field orientation="horizontal">
-                      <FieldLabel htmlFor="input-labels">Point input</FieldLabel>
-                      <Switch id="input-labels" checked={pointLabelOptions.inputLabels} onCheckedChange={(checked) => updatePointLabels('inputLabels', checked)} />
-                    </Field>
-                    <Field orientation="horizontal">
-                      <FieldLabel htmlFor="sorted-labels">Point sorted</FieldLabel>
-                      <Switch id="sorted-labels" checked={pointLabelOptions.sortedLabels} onCheckedChange={(checked) => updatePointLabels('sortedLabels', checked)} />
-                    </Field>
-                    <Field orientation="horizontal">
-                      <FieldLabel htmlFor="coordinate-labels">Point (x; y)</FieldLabel>
-                      <Switch id="coordinate-labels" checked={pointLabelOptions.coordinates} onCheckedChange={(checked) => updatePointLabels('coordinates', checked)} />
-                    </Field>
-                    <Field orientation="horizontal">
-                      <FieldLabel htmlFor="edge-pair-labels">Edge P1-P2</FieldLabel>
-                      <Switch id="edge-pair-labels" checked={edgeLabelOptions.pairLabels} onCheckedChange={(checked) => updateEdgeLabels('pairLabels', checked)} />
-                    </Field>
-                    <Field orientation="horizontal">
-                      <FieldLabel htmlFor="edge-id-labels">Edge E1</FieldLabel>
-                      <Switch id="edge-id-labels" checked={edgeLabelOptions.idLabels} onCheckedChange={(checked) => updateEdgeLabels('idLabels', checked)} />
-                    </Field>
-                  </FieldGroup>
-                </FieldSet>
+                  <FieldSet>
+                    <FieldLegend variant="label">Layers</FieldLegend>
+                    <FieldGroup className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-x-4 gap-y-2">
+                      <LayerField id="layer-delaunay" label="Delaunay" color="var(--canvas-edge)" checked={toggles.delaunayEdges} onCheckedChange={(checked) => updateLayer('delaunayEdges', checked)} />
+                      <LayerField id="layer-split-lines" label="Split" color="var(--canvas-split)" checked={toggles.splitLines} onCheckedChange={(checked) => updateLayer('splitLines', checked)} />
+                      <LayerField id="layer-candidates" label="Candidates" color="var(--canvas-edge-candidate)" checked={toggles.candidateEdges} onCheckedChange={(checked) => updateLayer('candidateEdges', checked)} />
+                      <LayerField id="layer-circumcircles" label="Circles" color="var(--canvas-circle)" checked={toggles.circumcircles} onCheckedChange={(checked) => updateLayer('circumcircles', checked)} />
+                      <LayerField id="layer-deleted" label="Deleted" color="var(--canvas-edge-deleted)" checked={toggles.deletedEdges} onCheckedChange={(checked) => updateLayer('deletedEdges', checked)} />
+                      <LayerField id="layer-nearest" label="Nearest" color="var(--canvas-edge-nearest)" checked={toggles.nearestArrows} onCheckedChange={(checked) => updateLayer('nearestArrows', checked)} />
+                    </FieldGroup>
+                  </FieldSet>
+                </div>
 
-                <Separator />
-
-                <FieldSet>
-                  <FieldLegend>Layers</FieldLegend>
-                  <FieldGroup className="gap-4">
-                    <Field orientation="horizontal">
-                      <FieldLabel htmlFor="layer-delaunay">Delaunay</FieldLabel>
-                      <Switch id="layer-delaunay" checked={toggles.delaunayEdges} onCheckedChange={(checked) => updateLayer('delaunayEdges', checked)} />
-                    </Field>
-                    <Field orientation="horizontal">
-                      <FieldLabel htmlFor="layer-split-lines">Split</FieldLabel>
-                      <Switch id="layer-split-lines" checked={toggles.splitLines} onCheckedChange={(checked) => updateLayer('splitLines', checked)} />
-                    </Field>
-                    <Field orientation="horizontal">
-                      <FieldLabel htmlFor="layer-candidates">Candidates</FieldLabel>
-                      <Switch id="layer-candidates" checked={toggles.candidateEdges} onCheckedChange={(checked) => updateLayer('candidateEdges', checked)} />
-                    </Field>
-                    <Field orientation="horizontal">
-                      <FieldLabel htmlFor="layer-circumcircles">Circles</FieldLabel>
-                      <Switch id="layer-circumcircles" checked={toggles.circumcircles} onCheckedChange={(checked) => updateLayer('circumcircles', checked)} />
-                    </Field>
-                    <Field orientation="horizontal">
-                      <FieldLabel htmlFor="layer-deleted">Deleted</FieldLabel>
-                      <Switch id="layer-deleted" checked={toggles.deletedEdges} onCheckedChange={(checked) => updateLayer('deletedEdges', checked)} />
-                    </Field>
-                    <Field orientation="horizontal">
-                      <FieldLabel htmlFor="layer-nearest">Nearest</FieldLabel>
-                      <Switch id="layer-nearest" checked={toggles.nearestArrows} onCheckedChange={(checked) => updateLayer('nearestArrows', checked)} />
-                    </Field>
-                  </FieldGroup>
-                </FieldSet>
-
-                <div className="mt-auto flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-                  <Badge variant="outline">{result?.edges.length ?? 0} edges</Badge>
-                  <Badge variant="outline">runtime {result ? `${result.runtimeMs.toFixed(2)} ms` : 'not run'}</Badge>
+                <div className="grid gap-1 text-xs text-muted-foreground">
+                  {points.length > 100 ? <p>Detailed trace disabled above 100 points.</p> : null}
+                  {mode === 'step' && resultTraceLevel === null && !result ? <p>Run again after switching back to step.</p> : null}
                   {error ? <span className="text-destructive">{error}</span> : null}
                 </div>
+
+                <Button type="button" size="sm" className="h-9" onClick={run} disabled={points.length < 2}>
+                  <Cpu data-icon="inline-start" />
+                  Run
+                </Button>
               </div>
             </CardContent>
           </Card>
 
-          {result ? <ResultPanel result={result} /> : <Card size="sm"><CardContent className="flex h-full items-center justify-center text-sm text-muted-foreground">Run the algorithm to see nearest neighbors.</CardContent></Card>}
+          {result ? (
+            <ResultPanel result={result} />
+          ) : (
+            <Card size="sm" className="min-h-0 py-0">
+              <CardContent className="flex h-full min-h-0 items-center justify-center py-3 text-sm text-muted-foreground">
+                Run the algorithm to see nearest neighbors.
+              </CardContent>
+            </Card>
+          )}
         </aside>
       </div>
     </main>
   );
+}
+
+function LayerField({
+  id,
+  label,
+  color,
+  checked,
+  onCheckedChange,
+}: {
+  readonly id: string;
+  readonly label: string;
+  readonly color: string;
+  readonly checked: boolean;
+  readonly onCheckedChange: (checked: boolean) => void;
+}) {
+  return (
+    <Field orientation="horizontal" className="min-w-0 w-full justify-start gap-2">
+      <Checkbox id={id} checked={checked} onCheckedChange={(value) => onCheckedChange(value === true)} />
+      <FieldLabel htmlFor={id} className="min-w-0 flex flex-1 items-center gap-2 text-sm">
+        <span aria-hidden className="block h-0.5 w-5 shrink-0" style={{ backgroundColor: color }} />
+        <span className="truncate">{label}</span>
+      </FieldLabel>
+    </Field>
+  );
+}
+
+function parseUploadedPoints(text: string): readonly { x: number; y: number }[] {
+  const trimmed = text.trim();
+  if (!trimmed) {
+    throw new Error('Uploaded file is empty.');
+  }
+
+  const parsedJson = tryParseJsonPoints(trimmed);
+  if (parsedJson) {
+    return parsedJson.map(({ x, y }) => ({ x: Math.round(x), y: Math.round(y) }));
+  }
+
+  const rawLines = trimmed
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0 && !line.startsWith('#'));
+
+  const lines = rawLines.length > 1 && /^\d+$/.test(rawLines[0] ?? '') ? rawLines.slice(1) : rawLines;
+  const points = lines.map(parsePointLine).filter((point): point is { x: number; y: number } => Boolean(point));
+
+  if (points.length === 0) {
+    throw new Error('Could not parse points from the uploaded file. Use JSON or one point per line.');
+  }
+
+  return points.map(({ x, y }) => ({ x: Math.round(x), y: Math.round(y) }));
+}
+
+function tryParseJsonPoints(text: string): readonly { x: number; y: number }[] | null {
+  try {
+    const value = JSON.parse(text);
+    if (!Array.isArray(value)) return null;
+
+    const points = value.flatMap((item) => {
+      if (Array.isArray(item) && item.length >= 2 && Number.isFinite(item[0]) && Number.isFinite(item[1])) {
+        return [{ x: Number(item[0]), y: Number(item[1]) }];
+      }
+
+      if (
+        item &&
+        typeof item === 'object' &&
+        'x' in item &&
+        'y' in item &&
+        Number.isFinite(item.x) &&
+        Number.isFinite(item.y)
+      ) {
+        return [{ x: Number(item.x), y: Number(item.y) }];
+      }
+
+      return [];
+    });
+
+    return points.length > 0 ? points : null;
+  } catch {
+    return null;
+  }
+}
+
+function parsePointLine(line: string): { x: number; y: number } | null {
+  const parts = line.replace(/[;,]/g, ' ').split(/\s+/).filter(Boolean);
+  if (parts.length < 2) return null;
+
+  const numeric = parts.map((part) => Number(part));
+  const first = numeric[0] ?? Number.NaN;
+  const second = numeric[1] ?? Number.NaN;
+  const third = numeric[2] ?? Number.NaN;
+
+  if (numeric.length >= 2 && Number.isFinite(first) && Number.isFinite(second)) {
+    return { x: first, y: second };
+  }
+
+  if (numeric.length >= 3 && Number.isFinite(second) && Number.isFinite(third)) {
+    return { x: second, y: third };
+  }
+
+  return null;
 }

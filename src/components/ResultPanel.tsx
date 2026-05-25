@@ -10,8 +10,8 @@ interface ResultPanelProps {
 
 export function ResultPanel({ result }: ResultPanelProps) {
   return (
-    <Card size="sm">
-      <CardContent>
+    <Card size="sm" className="min-h-0 py-0">
+      <CardContent className="h-full min-h-0 py-3">
         <ScrollArea className="h-full">
           <div className="flex flex-col">
             {result.nearestNeighbors.map((item) => {
