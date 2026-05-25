@@ -1,7 +1,17 @@
 export type VisualizationMode = 'step' | 'phase' | 'result';
 
+export interface PointLabelOptions {
+  readonly inputLabels: boolean;
+  readonly sortedLabels: boolean;
+  readonly coordinates: boolean;
+}
+
+export interface EdgeLabelOptions {
+  readonly pairLabels: boolean;
+  readonly idLabels: boolean;
+}
+
 export interface VisualizationToggles {
-  readonly labels: boolean;
   readonly delaunayEdges: boolean;
   readonly splitLines: boolean;
   readonly candidateEdges: boolean;
@@ -10,8 +20,18 @@ export interface VisualizationToggles {
   readonly nearestArrows: boolean;
 }
 
+export const defaultPointLabelOptions: PointLabelOptions = {
+  inputLabels: true,
+  sortedLabels: true,
+  coordinates: false,
+};
+
+export const defaultEdgeLabelOptions: EdgeLabelOptions = {
+  pairLabels: true,
+  idLabels: false,
+};
+
 export const defaultToggles: VisualizationToggles = {
-  labels: true,
   delaunayEdges: true,
   splitLines: true,
   candidateEdges: true,
