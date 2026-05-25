@@ -1,6 +1,6 @@
 import type { NearestNeighbor, Point } from '../geometry/types';
 import { distanceSquared, sameDistance } from '../geometry/predicates';
-import type { ValidationResult } from '../app/types';
+import type { ValidationResult } from './types';
 
 export const BRUTE_FORCE_LIMIT = 100;
 

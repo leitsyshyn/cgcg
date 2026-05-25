@@ -1,4 +1,4 @@
-import type { Point } from './types';
+import type { Circle, Point } from './types';
 
 export const EPSILON = 1e-9;
 
@@ -51,7 +51,7 @@ export function collinear(points: readonly Point[]): boolean {
   return points.every((point) => Math.abs(orientation(first, second, point)) <= EPSILON);
 }
 
-export function circumcircle(a: Point, b: Point, c: Point): { readonly cx: number; readonly cy: number; readonly r: number } | null {
+export function circumcircle(a: Point, b: Point, c: Point): Circle | null {
   const d = 2 * (a.x * (b.y - c.y) + b.x * (c.y - a.y) + c.x * (a.y - b.y));
   if (Math.abs(d) <= EPSILON) return null;
 

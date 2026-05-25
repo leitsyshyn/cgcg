@@ -13,9 +13,10 @@
   "dependencies": {
     "@vitejs/plugin-react": "latest",
     "d3": "latest",
-    "vite": "latest",
+    "openrtk": "^0.1.0",
     "react": "latest",
-    "react-dom": "latest"
+    "react-dom": "latest",
+    "vite": "latest"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "latest",

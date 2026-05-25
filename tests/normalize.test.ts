@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { normalizePoints } from "../src/app/normalize";
-import { sortedOrder } from "../src/geometry/delaunay-triangulation";
+import { sortedOrder } from "../src/geometry/order";
 
 describe("input normalization", () => {
   it("rejects duplicate coordinates", () => {
     const result = normalizePoints([
-      { id: "a", name: "A", point: { x: 1, y: 1 }, sortedIndex: null },
-      { id: "b", name: "B", point: { x: 1, y: 1 }, sortedIndex: null },
+      { id: "a", name: "A", x: 1, y: 1, sortedIndex: null },
+      { id: "b", name: "B", x: 1, y: 1, sortedIndex: null },
     ]);
     expect(result.ok).toBe(false);
     if (!result.ok)

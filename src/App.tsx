@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { GeometryCanvas } from './components/GeometryCanvas';
 import type { AlgorithmResult, AppPoint } from './app/types';
 import { tracePoint } from './app/types';
@@ -37,6 +37,7 @@ export default function App() {
   const [mode, setMode] = useState<VisualizationMode>('step');
   const [toggles, setToggles] = useState<VisualizationToggles>(defaultToggles);
   const [result, setResult] = useState<AlgorithmResult | null>(null);
+  const [resultTraceLevel, setResultTraceLevel] = useState<TraceLevel | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [step, setStep] = useState(0);
   const [playing, setPlaying] = useState(false);
@@ -44,9 +45,15 @@ export default function App() {
 
   const effectiveMode: VisualizationMode = points.length > 100 && mode === 'step' ? 'result' : mode;
   const traceLevel: TraceLevel = effectiveMode === 'step' ? 'detailed' : 'phase';
-  const events = result ? filterTraceEvents(result.trace, effectiveMode === 'step' ? 'detailed' : 'phase') : [];
+  const events = useMemo(
+    () => (result ? filterTraceEvents(result.trace, effectiveMode === 'step' ? 'detailed' : 'phase') : []),
+    [effectiveMode, result],
+  );
   const maxStep = Math.max(0, events.length - 1);
-  const frame = result ? projectTraceFrame(events, effectiveMode === 'result' ? maxStep : step) : idleFrame(points);
+  const frame = useMemo(
+    () => (result ? projectTraceFrame(events, effectiveMode === 'result' ? maxStep : step) : idleFrame(points)),
+    [effectiveMode, events, maxStep, points, result, step],
+  );
 
   useEffect(() => {
     if (!playing || effectiveMode === 'result') return;
@@ -64,8 +71,9 @@ export default function App() {
 
   function addPoint(x: number, y: number): void {
     const id = `p${points.length + 1}`;
-    setPoints((current) => [...current, { id, name: `S${current.length + 1}`, point: { x: Math.round(x), y: Math.round(y) }, sortedIndex: null }]);
+    setPoints((current) => [...current, { id, name: `S${current.length + 1}`, x: Math.round(x), y: Math.round(y), sortedIndex: null }]);
     setResult(null);
+    setResultTraceLevel(null);
     setError(null);
     setStep(0);
   }
@@ -75,14 +83,13 @@ export default function App() {
     const generated = Array.from({ length: count }, (_, index) => ({
       id: `p${index + 1}`,
       name: `S${index + 1}`,
-      point: {
-        x: 45 + Math.round(Math.random() * (CANVAS_WIDTH - 90)),
-        y: 45 + Math.round(Math.random() * (CANVAS_HEIGHT - 90)),
-      },
+      x: 45 + Math.round(Math.random() * (CANVAS_WIDTH - 90)),
+      y: 45 + Math.round(Math.random() * (CANVAS_HEIGHT - 90)),
       sortedIndex: null,
     }));
     setPoints(generated);
     setResult(null);
+    setResultTraceLevel(null);
     setError(null);
     setStep(0);
   }
@@ -95,7 +102,8 @@ export default function App() {
         generated.push({
           id: `p${index}`,
           name: `S${index}`,
-          point: { x: 150 + column * 110 + (row % 2) * 16, y: 110 + row * 85 },
+          x: 150 + column * 110 + (row % 2) * 16,
+          y: 110 + row * 85,
           sortedIndex: null,
         });
         index += 1;
@@ -103,6 +111,7 @@ export default function App() {
     }
     setPoints(generated);
     setResult(null);
+    setResultTraceLevel(null);
     setError(null);
     setStep(0);
   }
@@ -110,6 +119,7 @@ export default function App() {
   function clear(): void {
     setPoints([]);
     setResult(null);
+    setResultTraceLevel(null);
     setError(null);
     setStep(0);
     setPlaying(false);
@@ -118,21 +128,34 @@ export default function App() {
   function run(): void {
     setPlaying(false);
     const nextMode = points.length > 100 ? 'result' : effectiveMode;
+    const runTraceLevel = points.length > 100 ? 'phase' : traceLevel;
     if (nextMode !== mode) setMode(nextMode);
-    const computed = runLab(points, points.length > 100 ? 'phase' : traceLevel);
+    const computed = runLab(points, runTraceLevel);
     if (!computed.ok) {
       setError([computed.error.message, ...(computed.error.details ?? [])].join(' '));
       setResult(null);
+      setResultTraceLevel(null);
       return;
     }
     setError(null);
     setResult(computed.value);
+    setResultTraceLevel(runTraceLevel);
     const projectedEvents = filterTraceEvents(computed.value.trace, nextMode === 'step' ? 'detailed' : 'phase');
     setStep(nextMode === 'result' ? Math.max(0, projectedEvents.length - 1) : 0);
   }
 
   function updateToggle(key: keyof VisualizationToggles): void {
     setToggles((current) => ({ ...current, [key]: !current[key] }));
+  }
+
+  function updateMode(nextMode: VisualizationMode): void {
+    setMode(nextMode);
+    if (nextMode === 'step' && resultTraceLevel && resultTraceLevel !== 'detailed') {
+      setResult(null);
+      setResultTraceLevel(null);
+      setStep(0);
+      setPlaying(false);
+    }
   }
 
   const modeLabel = effectiveMode === 'step' ? 'Step mode' : effectiveMode === 'phase' ? 'Phase mode' : 'Result-only mode';
@@ -171,12 +194,13 @@ export default function App() {
 
           <div className="control-group">
             <h2>Visualization Mode</h2>
-            <select value={mode} onChange={(event) => setMode(event.target.value as VisualizationMode)}>
+            <select value={mode} onChange={(event) => updateMode(event.target.value as VisualizationMode)}>
               <option value="step" disabled={points.length > 100}>Step mode</option>
               <option value="phase">Phase mode</option>
               <option value="result">Result-only mode</option>
             </select>
             {points.length > 100 ? <p className="note">Detailed tracing is disabled for N &gt; 100.</p> : null}
+            {mode === 'step' && resultTraceLevel === null && !result ? <p className="note">Run again to record detailed step trace.</p> : null}
           </div>
 
           <div className="control-group">

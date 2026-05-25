@@ -1,4 +1,4 @@
-import type { EdgeId, PointId, TraceArrow, TraceCircle, TraceDistance, TraceEdge, TracePhase, TracePoint } from './events';
+import type { EdgeId, PointId, TraceArrow, TraceCircle, TraceDistance, TraceEdge, TracePhase, TracePoint, TraceTriangle } from './events';
 
 export interface SplitLineFrame {
   readonly id: string;
@@ -22,7 +22,7 @@ export interface TraceFrame {
   readonly splitLines: readonly SplitLineFrame[];
   readonly activeBaseEdge: readonly [PointId, PointId] | null;
   readonly candidates: readonly CandidateFrame[];
-  readonly activeTriangle: readonly [PointId, PointId, PointId] | null;
+  readonly activeTriangle: TraceTriangle | null;
   readonly testedPoint: PointId | null;
   readonly circumcircle: TraceCircle | null;
   readonly nearestArrows: readonly TraceArrow[];

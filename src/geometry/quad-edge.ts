@@ -1,6 +1,9 @@
 import type { Edge } from "./types";
+import type { GeometryTrace } from "./trace";
+import type { TraceEdge } from "../trace/types";
 
 interface QuadEdge {
+  readonly id: string;
   readonly edges: readonly [
     DirectedEdge,
     DirectedEdge,
@@ -18,14 +21,18 @@ export interface DirectedEdge {
 }
 
 export class QuadEdgeSubdivision {
+  private nextId = 1;
   private readonly quads: QuadEdge[] = [];
 
+  constructor(private readonly trace?: GeometryTrace) {}
+
   makeEdge(origin: number, destination: number): DirectedEdge {
+    const id = `e${this.nextId++}`;
     const e0 = this.createDirected(0, origin);
     const e1 = this.createDirected(1, null);
     const e2 = this.createDirected(2, destination);
     const e3 = this.createDirected(3, null);
-    const quad: QuadEdge = { edges: [e0, e1, e2, e3] };
+    const quad: QuadEdge = { id, edges: [e0, e1, e2, e3] };
 
     e0.quad = quad;
     e1.quad = quad;
@@ -37,6 +44,11 @@ export class QuadEdgeSubdivision {
     e3.next = e1;
 
     this.quads.push(quad);
+    this.trace?.detailed("edge-created", `Created Delaunay topology edge ${id}.`, {
+      edge: this.traceEdge(e0),
+      edgeIds: [id],
+      pointIds: [this.pointId(origin), this.pointId(destination)],
+    });
     return e0;
   }
 
@@ -52,16 +64,31 @@ export class QuadEdgeSubdivision {
     b.next = t2;
     alpha.next = t3;
     beta.next = t4;
+
+    this.trace?.detailed("edge-spliced", "Applied quad-edge splice operation.", {
+      edgeIds: [this.edgeId(a), this.edgeId(b)],
+    });
   }
 
   connect(a: DirectedEdge, b: DirectedEdge): DirectedEdge {
-    const edge = this.makeEdge(this.dest(a), this.orig(b));
+    const destination = this.dest(a);
+    const origin = this.orig(b);
+    const edge = this.makeEdge(destination, origin);
     this.splice(edge, this.lnext(a));
     this.splice(this.sym(edge), b);
+    this.trace?.detailed("edge-connected", "Connected two triangulation fronts.", {
+      edge: this.traceEdge(edge),
+      edgeIds: [this.edgeId(edge), this.edgeId(a), this.edgeId(b)],
+      pointIds: [this.pointId(destination), this.pointId(origin)],
+    });
     return edge;
   }
 
   deleteEdge(edge: DirectedEdge): void {
+    this.trace?.detailed("edge-deleted", `Deleted invalid Delaunay edge ${this.edgeId(edge)}.`, {
+      edge: this.traceEdge(edge),
+      edgeIds: [this.edgeId(edge)],
+    });
     this.splice(edge, this.oprev(edge));
     this.splice(this.sym(edge), this.oprev(this.sym(edge)));
     edge.quad.edges.forEach((directed) => {
@@ -108,6 +135,22 @@ export class QuadEdgeSubdivision {
     return this.orig(this.sym(edge));
   }
 
+  edgeId(edge: DirectedEdge): string {
+    return edge.quad.id;
+  }
+
+  edgePointPair(edge: DirectedEdge): readonly [string, string] {
+    return [this.pointId(this.orig(edge)), this.pointId(this.dest(edge))];
+  }
+
+  traceEdge(edge: DirectedEdge): TraceEdge {
+    return {
+      id: this.edgeId(edge),
+      from: this.pointId(this.orig(edge)),
+      to: this.pointId(this.dest(edge)),
+    };
+  }
+
   edges(): readonly Edge[] {
     const edges: Edge[] = [];
     const seen = new Set<string>();
@@ -138,5 +181,9 @@ export class QuadEdgeSubdivision {
       quad: null as unknown as QuadEdge,
       next: null as unknown as DirectedEdge,
     };
+  }
+
+  private pointId(index: number): string {
+    return this.trace?.pointId(index) ?? String(index);
   }
 }

@@ -9,7 +9,7 @@ function p(x: number, y: number): Point {
 }
 
 function appPoints(points: readonly Point[]): readonly AppPoint[] {
-  return points.map((point, index) => ({ id: `p${index + 1}`, name: `S${index + 1}`, point, sortedIndex: null }));
+  return points.map((point, index) => ({ id: `p${index + 1}`, name: `S${index + 1}`, x: point.x, y: point.y, sortedIndex: null }));
 }
 
 describe('nearest-neighbor calculation', () => {

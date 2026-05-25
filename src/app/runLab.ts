@@ -1,8 +1,9 @@
 import { adjacencyGraph } from "../geometry/adjacency-graph";
+import type { GeometryTrace } from "../geometry/trace";
 import {
   delaunayTriangulation,
-  sortedOrder,
 } from "../geometry/delaunay-triangulation";
+import { sortedOrder } from "../geometry/order";
 import { nearestNeighbors } from "../geometry/nearest-neighbors";
 import { TraceRecorder, type TraceLevel } from "../trace/recorder";
 import { validateNearestNeighbors } from "../validation/bruteForceNearest";
@@ -13,7 +14,7 @@ import {
   type AppPoint,
   type AppResult,
 } from "./types";
-import { geometryPoints, normalizePoints } from "./normalize";
+import { normalizePoints } from "./normalize";
 
 export function runLab(
   input: readonly AppPoint[],
@@ -38,8 +39,15 @@ export function runLab(
   }
 
   const points = normalized.value;
-  const purePoints = geometryPoints(points);
-  const order = sortedOrder(purePoints);
+  const order = sortedOrder(points);
+  const geometryTrace: GeometryTrace | undefined = traceLevel !== "off"
+    ? {
+        pointId: (index) => points[index]?.id ?? String(index),
+        pointLabel: (index) => points[index]?.name ?? `point ${index + 1}`,
+        phase: (phase, message, payload) => trace.phase(phase, message, payload),
+        detailed: (phase, message, payload) => trace.detailed(phase, message, payload),
+      }
+    : undefined;
 
   trace.phase(
     "input-normalized",
@@ -65,7 +73,7 @@ export function runLab(
         pointIds: points.map((point) => point.id),
       },
     );
-    triangulation = delaunayTriangulation(purePoints);
+    triangulation = delaunayTriangulation(points, geometryTrace);
   } catch (error) {
     return {
       ok: false,
@@ -98,7 +106,7 @@ export function runLab(
     },
   );
 
-  const nearest = nearestNeighbors(purePoints, graph);
+  const nearest = nearestNeighbors(points, graph, geometryTrace);
   const nearestArrows = nearest.flatMap((item) =>
     item.neighbors.map((neighbor) => ({
       from: points[item.point]?.id ?? "",
@@ -113,7 +121,7 @@ export function runLab(
     },
   );
 
-  const validation = validateNearestNeighbors(purePoints, nearest);
+  const validation = validateNearestNeighbors(points, nearest);
   trace.phase("validation-complete", validation.message, { validation });
 
   const runtimeMs = performance.now() - start;

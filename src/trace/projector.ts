@@ -78,8 +78,3 @@ export function projectTraceFrame(events: readonly TraceEvent[], eventIndex: num
     explanation,
   };
 }
-
-export function projectAllFrames(events: readonly TraceEvent[]): readonly TraceFrame[] {
-  if (events.length === 0) return [projectTraceFrame([], -1)];
-  return events.map((_, index) => projectTraceFrame(events, index));
-}

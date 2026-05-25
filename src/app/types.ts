@@ -1,11 +1,11 @@
 import type { Edge, NearestNeighbor, Point, Triangulation } from '../geometry/types';
 import type { TraceEvent } from '../trace/events';
 import type { TracePoint } from '../trace/events';
+import type { ValidationResult } from '../validation/types';
 
-export interface AppPoint {
+export interface AppPoint extends Point {
   readonly id: string;
   readonly name: string;
-  readonly point: Point;
   readonly sortedIndex: number | null;
 }
 
@@ -13,12 +13,6 @@ export interface AppEdge {
   readonly id: string;
   readonly from: string;
   readonly to: string;
-}
-
-export interface ValidationResult {
-  readonly checked: boolean;
-  readonly ok: boolean;
-  readonly message: string;
 }
 
 export interface AlgorithmResult {
@@ -52,7 +46,7 @@ export function tracePoint(point: AppPoint): TracePoint {
     id: point.id,
     label: point.name,
     sortedLabel: point.sortedIndex === null ? null : `P${point.sortedIndex + 1}`,
-    x: point.point.x,
-    y: point.point.y,
+    x: point.x,
+    y: point.y,
   };
 }

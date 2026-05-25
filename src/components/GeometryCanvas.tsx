@@ -49,6 +49,11 @@ export function GeometryCanvas({ frame, toggles, width, height, onAddPoint }: Ge
     const pointById = new Map<PointId, TracePoint>(frame.points.map((point) => [point.id, point]));
     const activeSubset = new Set(frame.activeSubset);
     const highlightedEdges = new Set(frame.highlightedEdges);
+    const lineFromIds = (id: string, fromId: PointId, toId: PointId, className: string): RenderLine[] => {
+      const from = pointById.get(fromId);
+      const to = pointById.get(toId);
+      return from && to ? [{ id, from, to, className }] : [];
+    };
 
     if (toggles.splitLines) {
       svg
@@ -66,55 +71,32 @@ export function GeometryCanvas({ frame, toggles, width, height, onAddPoint }: Ge
     }
 
     const normalEdges: RenderLine[] = toggles.delaunayEdges
-      ? frame.visibleEdges.flatMap((edge) => {
-          const from = pointById.get(edge.from);
-          const to = pointById.get(edge.to);
-          if (!from || !to) return [];
-          return [{ id: edge.id, from, to, className: highlightedEdges.has(edge.id) ? 'edge active' : 'edge normal' }];
-        })
+      ? frame.visibleEdges.flatMap((edge) => lineFromIds(edge.id, edge.from, edge.to, highlightedEdges.has(edge.id) ? 'edge active' : 'edge normal'))
       : [];
 
     const deletedEdges: RenderLine[] = toggles.deletedEdges
-      ? frame.deletedEdges.flatMap((edge) => {
-          const from = pointById.get(edge.from);
-          const to = pointById.get(edge.to);
-          if (!from || !to) return [];
-          return [{ id: `deleted-${edge.id}`, from, to, className: 'edge deleted' }];
-        })
+      ? frame.deletedEdges.flatMap((edge) => lineFromIds(`deleted-${edge.id}`, edge.from, edge.to, 'edge deleted'))
       : [];
 
     const candidateEdges: RenderLine[] = toggles.candidateEdges
-      ? frame.candidates.flatMap((candidate) => {
-          const from = pointById.get(candidate.from);
-          const to = pointById.get(candidate.to);
-          if (!from || !to) return [];
-          return [{ id: `candidate-${candidate.side}-${candidate.from}-${candidate.to}`, from, to, className: `edge candidate ${candidate.side}` }];
-        })
+      ? frame.candidates.flatMap((candidate) => lineFromIds(
+          `candidate-${candidate.side}-${candidate.from}-${candidate.to}`,
+          candidate.from,
+          candidate.to,
+          `edge candidate ${candidate.side}`,
+        ))
       : [];
 
     const baseEdge: RenderLine[] = frame.activeBaseEdge
-      ? (() => {
-          const from = pointById.get(frame.activeBaseEdge[0]);
-          const to = pointById.get(frame.activeBaseEdge[1]);
-          return from && to ? [{ id: 'active-base-edge', from, to, className: 'edge base active' }] : [];
-        })()
+      ? lineFromIds('active-base-edge', frame.activeBaseEdge[0], frame.activeBaseEdge[1], 'edge base active')
       : [];
 
     const nearestEdges: RenderLine[] = toggles.nearestArrows
-      ? frame.nearestArrows.flatMap((arrow, index) => {
-          const from = pointById.get(arrow.from);
-          const to = pointById.get(arrow.to);
-          if (!from || !to) return [];
-          return [{ id: `nearest-${index}-${arrow.from}-${arrow.to}`, from, to, className: 'edge nearest' }];
-        })
+      ? frame.nearestArrows.flatMap((arrow, index) => lineFromIds(`nearest-${index}-${arrow.from}-${arrow.to}`, arrow.from, arrow.to, 'edge nearest'))
       : [];
 
     const activeDistance: RenderLine[] = frame.activeDistance
-      ? (() => {
-          const from = pointById.get(frame.activeDistance.from);
-          const to = pointById.get(frame.activeDistance.to);
-          return from && to ? [{ id: 'active-distance', from, to, className: 'edge checked' }] : [];
-        })()
+      ? lineFromIds('active-distance', frame.activeDistance.from, frame.activeDistance.to, 'edge checked')
       : [];
 
     const lines = [...normalEdges, ...deletedEdges, ...candidateEdges, ...baseEdge, ...nearestEdges, ...activeDistance];
@@ -132,7 +114,9 @@ export function GeometryCanvas({ frame, toggles, width, height, onAddPoint }: Ge
       .attr('marker-end', (line) => (line.className.includes('nearest') ? 'url(#arrow-head)' : null));
 
     if (frame.activeTriangle) {
-      const trianglePoints = frame.activeTriangle.map((id) => pointById.get(id)).filter((point): point is TracePoint => Boolean(point));
+      const trianglePoints = [frame.activeTriangle.a, frame.activeTriangle.b, frame.activeTriangle.c]
+        .map((id) => pointById.get(id))
+        .filter((point): point is TracePoint => Boolean(point));
       if (trianglePoints.length === 3) {
         svg
           .append('polygon')
