@@ -463,8 +463,7 @@ function buildPointLabelLines(
   if (options.inputLabels) lines.push(point.label);
   if (options.sortedLabels && point.sortedLabel) lines.push(point.sortedLabel);
   if (options.coordinates) {
-    const plane = toPlaneCoordinates(point);
-    lines.push(`(${plane.x}; ${plane.y})`);
+    lines.push(`(${formatCoordinate(point.x)}; ${formatCoordinate(point.y)})`);
   }
   return lines;
 }
@@ -527,11 +526,9 @@ function comparePointLabel(a: string, b: string): number {
   return a.localeCompare(b);
 }
 
-function toPlaneCoordinates(point: TracePoint): { x: number; y: number } {
-  return {
-    x: Math.round(point.x),
-    y: Math.round(point.y),
-  };
+function formatCoordinate(value: number): string {
+  if (Number.isInteger(value)) return String(value);
+  return value.toFixed(3).replace(/\.0+$/, '').replace(/(\.\d*?)0+$/, '$1');
 }
 
 function screenToWorld(screenX: number, screenY: number, width: number, height: number): { x: number; y: number } {

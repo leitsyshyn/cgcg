@@ -19,7 +19,7 @@ The implementation is intended to run in `O(N log N)`: sorting plus divide-and-c
 
 ## Empirical Evidence
 
-- Generated at: 2026-06-08T16:17:05.114Z
+- Generated at: 2026-06-08T16:39:44.700Z
 - Environment: Node v24.13.1 on darwin arm64
 - Sizes: 100, 250, 500, 1000, 2000, 5000, 10000
 - Warmup runs per case: 2
@@ -29,40 +29,40 @@ The implementation is intended to run in `O(N log N)`: sorting plus divide-and-c
 ### Dataset Families
 
 - `random`: Seeded duplicate-free integer points spread across a large square. Seed: 1592639710.
-- `structured`: Deterministic staggered lattice with a seam offset to stress recursive merges. Seed: 85903341.
+- `structured`: Deterministic staggered stress lattice with a seam offset, used as the worst-case-style large-input efficiency demo. Seed: 85903341.
 
 ### Random
 
 | N | Median ms | Mean ms | Batch | Edges | Nearest links | T(N)/(N log2 N) us | Observed growth | Expected N log2 N growth | Validation |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
-| 100 | 0.237 | 0.237 | 32 | 284 | 100 | 0.357 | - | - | Validated against brute-force nearest neighbors. |
-| 250 | 0.679 | 0.690 | 33 | 732 | 250 | 0.341 | 2.867 | 2.997 | Skipped brute-force validation for N > 100. |
-| 500 | 1.494 | 1.519 | 18 | 1478 | 500 | 0.333 | 2.200 | 2.251 | Skipped brute-force validation for N > 100. |
-| 1000 | 3.289 | 3.366 | 8 | 2977 | 1000 | 0.330 | 2.201 | 2.223 | Skipped brute-force validation for N > 100. |
-| 2000 | 7.256 | 7.253 | 4 | 5970 | 2000 | 0.331 | 2.206 | 2.201 | Skipped brute-force validation for N > 100. |
-| 5000 | 23.951 | 23.966 | 2 | 14973 | 5000 | 0.390 | 3.301 | 2.801 | Skipped brute-force validation for N > 100. |
-| 10000 | 51.079 | 51.147 | 1 | 29974 | 10000 | 0.384 | 2.133 | 2.163 | Skipped brute-force validation for N > 100. |
+| 100 | 0.271 | 0.368 | 33 | 284 | 100 | 0.408 | - | - | Validated against brute-force nearest neighbors. |
+| 250 | 0.856 | 0.891 | 17 | 732 | 250 | 0.430 | 3.157 | 2.997 | Skipped brute-force validation for N > 100. |
+| 500 | 2.000 | 2.195 | 16 | 1478 | 500 | 0.446 | 2.336 | 2.251 | Skipped brute-force validation for N > 100. |
+| 1000 | 3.679 | 5.457 | 5 | 2977 | 1000 | 0.369 | 1.839 | 2.223 | Skipped brute-force validation for N > 100. |
+| 2000 | 9.261 | 11.535 | 4 | 5970 | 2000 | 0.422 | 2.517 | 2.201 | Skipped brute-force validation for N > 100. |
+| 5000 | 24.265 | 24.086 | 2 | 14973 | 5000 | 0.395 | 2.620 | 2.801 | Skipped brute-force validation for N > 100. |
+| 10000 | 51.464 | 52.687 | 1 | 29974 | 10000 | 0.387 | 2.121 | 2.163 | Skipped brute-force validation for N > 100. |
 
-Interpretation: For N >= 500, the normalized metric stayed within a 1.18x band and adjacent-size growth stayed close to the N log2 N baseline.
-Normalized range factor for N >= 500: 1.181x.
-Maximum adjacent-size growth deviation for N >= 500: 17.8%.
+Interpretation: For N >= 500, the normalized metric stayed within a 1.21x band and adjacent-size growth stayed close to the N log2 N baseline.
+Normalized range factor for N >= 500: 1.209x.
+Maximum adjacent-size growth deviation for N >= 500: 17.3%.
 Consistency verdict: consistent with practical O(N log N).
 
 ### Structured
 
 | N | Median ms | Mean ms | Batch | Edges | Nearest links | T(N)/(N log2 N) us | Observed growth | Expected N log2 N growth | Validation |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
-| 100 | 0.206 | 0.206 | 87 | 286 | 100 | 0.311 | - | - | Validated against brute-force nearest neighbors. |
-| 250 | 0.647 | 0.686 | 37 | 730 | 250 | 0.325 | 3.135 | 2.997 | Skipped brute-force validation for N > 100. |
-| 500 | 1.435 | 1.435 | 17 | 1480 | 500 | 0.320 | 2.218 | 2.251 | Skipped brute-force validation for N > 100. |
-| 1000 | 3.178 | 3.180 | 8 | 2976 | 1000 | 0.319 | 2.215 | 2.223 | Skipped brute-force validation for N > 100. |
-| 2000 | 6.831 | 6.829 | 4 | 5972 | 2000 | 0.311 | 2.149 | 2.201 | Skipped brute-force validation for N > 100. |
-| 5000 | 21.054 | 20.696 | 2 | 14960 | 5000 | 0.343 | 3.082 | 2.801 | Skipped brute-force validation for N > 100. |
-| 10000 | 45.955 | 46.546 | 1 | 29940 | 10000 | 0.346 | 2.183 | 2.163 | Skipped brute-force validation for N > 100. |
+| 100 | 0.214 | 0.216 | 88 | 286 | 100 | 0.322 | - | - | Validated against brute-force nearest neighbors. |
+| 250 | 0.655 | 0.655 | 39 | 730 | 250 | 0.329 | 3.066 | 2.997 | Skipped brute-force validation for N > 100. |
+| 500 | 1.503 | 1.686 | 17 | 1480 | 500 | 0.335 | 2.294 | 2.251 | Skipped brute-force validation for N > 100. |
+| 1000 | 3.179 | 3.179 | 8 | 2976 | 1000 | 0.319 | 2.115 | 2.223 | Skipped brute-force validation for N > 100. |
+| 2000 | 6.955 | 6.962 | 3 | 5972 | 2000 | 0.317 | 2.188 | 2.201 | Skipped brute-force validation for N > 100. |
+| 5000 | 20.974 | 21.491 | 2 | 14960 | 5000 | 0.341 | 3.015 | 2.801 | Skipped brute-force validation for N > 100. |
+| 10000 | 46.175 | 46.689 | 1 | 29940 | 10000 | 0.347 | 2.202 | 2.163 | Skipped brute-force validation for N > 100. |
 
-Interpretation: For N >= 500, the normalized metric stayed within a 1.11x band and adjacent-size growth stayed close to the N log2 N baseline.
-Normalized range factor for N >= 500: 1.110x.
-Maximum adjacent-size growth deviation for N >= 500: 10.0%.
+Interpretation: For N >= 500, the normalized metric stayed within a 1.10x band and adjacent-size growth stayed close to the N log2 N baseline.
+Normalized range factor for N >= 500: 1.096x.
+Maximum adjacent-size growth deviation for N >= 500: 7.6%.
 Consistency verdict: consistent with practical O(N log N).
 
 ## Conclusion

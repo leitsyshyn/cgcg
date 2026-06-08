@@ -143,6 +143,23 @@ describe('nearest-neighbor calculation', () => {
     }
   });
 
+  it('preserves fractional coordinates and matches brute-force nearest neighbors', () => {
+    const input = [
+      p(0.1, 0.2),
+      p(1.4, 0.25),
+      p(1.45, 1.55),
+      p(-0.8, 1.1),
+    ];
+    const result = runLab(appPoints(input), 'off');
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value.points.map(({ x, y }) => ({ x, y }))).toEqual(input);
+      expect(result.value.validation).toMatchObject({ checked: true, ok: true });
+      expect(validateNearestNeighbors(result.value.points, result.value.nearestNeighbors)).toMatchObject({ checked: true, ok: true });
+    }
+  });
+
   it('uses a sorted chain triangulation for all-collinear geometry inputs', () => {
     const triangulation = delaunayTriangulation([
       p(0, 0),

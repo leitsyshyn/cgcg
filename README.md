@@ -75,7 +75,7 @@ The markdown summary reports both the theoretical `O(N log N)` claim and separat
 2. Set `Point count` before using the generators.
 3. Choose a generation area. `Spread` generates around the plane origin inside a configurable centered range. `Viewport` generates inside the current visible canvas area.
 4. Use `Random` for a general demo input.
-5. Use `Structured` for a deterministic stress-style lattice input.
+5. Use `Stress` for a deterministic merge-heavy lattice input used to demonstrate large-input efficiency.
 6. Use `Upload` to load points from `.txt`, `.csv`, or `.json`.
 7. Use `Clear` to remove the current input and trace.
 8. Use `Fit View` or `Reset View` to manage the viewport.
@@ -89,7 +89,7 @@ For `N <= 100`, detailed step tracing is available. For `100 < N <= 2000`, the U
 ## Algorithmic Flow
 
 1. Normalize input points and preserve stable point IDs.
-2. Reject exact duplicate coordinates and unsupported all-collinear inputs.
+2. Reject exact duplicate coordinates.
 3. Sort points by `x`, then `y`, then ID.
 4. Recursively divide the sorted set by a median vertical split.
 5. Build base Delaunay triangulations for two and three points.
@@ -127,7 +127,7 @@ The project manually implements:
 - orientation predicate;
 - in-circle predicate;
 - duplicate handling;
-- all-collinear rejection;
+- all-collinear chain fallback;
 - quad-edge topology;
 - `makeEdge`, `splice`, `connect`, `deleteEdge`;
 - symmetric/opposite edge navigation;
@@ -154,6 +154,8 @@ Supported:
 
 - two or more distinct finite points;
 - general-position non-collinear point sets;
+- all-collinear point sets via a sorted chain fallback;
+- integer and fractional coordinates without quantization;
 - small exact or near-tie nearest-neighbor situations;
 - small cocircular cases may produce one valid Delaunay triangulation among possible alternatives.
 
@@ -161,8 +163,16 @@ Rejected or restricted:
 
 - exact duplicate coordinates;
 - fewer than two distinct points;
-- all-collinear inputs with more than two points;
 - highly degenerate exact configurations can be numerically sensitive because predicates use floating-point arithmetic with an epsilon.
+
+Uploaded text input is intentionally strict to avoid silently changing the problem instance. Supported row formats are:
+
+- `x y`
+- `x, y`
+- `label x y`
+- `label, x, y`
+
+Ambiguous three-number rows such as `1 2 3` are rejected instead of guessed.
 
 The validation criterion is nearest-neighbor equality against brute force for small inputs, not identical triangulation edge sets.
 
@@ -184,3 +194,5 @@ The test suite covers:
 The theoretical justification used by the app is the lecture property that each nearest neighbor of a site shares a Voronoi edge with it. Since the Delaunay triangulation is the dual graph of the Voronoi diagram, nearest-neighbor candidates are adjacent in the Delaunay graph. After building Delaunay triangulation in `O(N log N)`, all nearest neighbors can be found by scanning only Delaunay adjacency rather than all point pairs.
 
 Practical timing evidence is now tracked by the benchmark artifacts under `benchmarks/results/`. Those results are empirical measurements, not a proof of asymptotic complexity.
+
+For the program-side lab requirement about demonstrating efficiency on difficult large inputs, the app includes a dedicated `Stress` generator and the benchmark suite includes the corresponding deterministic structured stress family.

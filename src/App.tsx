@@ -4,6 +4,7 @@ import { GeometryCanvas, type GeometryCanvasHandle } from './components/Geometry
 import { ResultPanel } from './components/ResultPanel';
 import { TraceLog } from './components/TraceLog';
 import type { AlgorithmResult, AppPoint } from './app/types';
+import { parseUploadedPoints } from './app/input';
 import { tracePoint } from './app/types';
 import { runLab } from './app/runLab';
 import { filterTraceEvents, type TraceLevel } from './trace/recorder';
@@ -141,8 +142,8 @@ export default function App() {
       nextPoints.map((point, index) => ({
         id: `p${index + 1}`,
         name: `S${index + 1}`,
-        x: Math.round(point.x),
-        y: Math.round(point.y),
+        x: point.x,
+        y: point.y,
         sortedIndex: null,
       })),
     );
@@ -155,8 +156,8 @@ export default function App() {
       {
         id: `p${current.length + 1}`,
         name: `S${current.length + 1}`,
-        x: Math.round(x),
-        y: Math.round(y),
+        x,
+        y,
         sortedIndex: null,
       },
     ]);
@@ -320,7 +321,7 @@ export default function App() {
                       </Button>
                       <Button type="button" variant="outline" size="sm" className="h-9" onClick={generateStructured}>
                         <GitMerge data-icon="inline-start" />
-                        Structured
+                        Stress
                       </Button>
                       <Button type="button" variant="outline" size="sm" className="h-9" onClick={clear}>
                         <Eraser data-icon="inline-start" />
@@ -547,7 +548,8 @@ export default function App() {
 
                 <div className="grid gap-1 text-xs text-muted-foreground">
                   <p>Drag to pan. Use the wheel or trackpad pinch to zoom.</p>
-                  <p>Random and structured generators can use a centered spread or the current viewport bounds.</p>
+                  <p>Random and stress generators can use a centered spread or the current viewport bounds.</p>
+                  <p>Use the stress preset to demonstrate merge-heavy large inputs for the efficiency requirement.</p>
                   <p>Point and edge labels are hidden automatically in dense views.</p>
                   {points.length > TRACE_OFF_POINT_LIMIT ? <p>Trace recording is disabled above {TRACE_OFF_POINT_LIMIT.toLocaleString()} points.</p> : null}
                   {points.length > 100 && points.length <= TRACE_OFF_POINT_LIMIT ? <p>Detailed trace disabled above 100 points.</p> : null}
@@ -769,80 +771,4 @@ function expandBounds(bounds: GenerationBounds, multiplier: number): GenerationB
 
 function randomInteger(min: number, max: number): number {
   return min + Math.floor(Math.random() * (max - min + 1));
-}
-
-function parseUploadedPoints(text: string): readonly { x: number; y: number }[] {
-  const trimmed = text.trim();
-  if (!trimmed) {
-    throw new Error('Uploaded file is empty.');
-  }
-
-  const parsedJson = tryParseJsonPoints(trimmed);
-  if (parsedJson) {
-    return parsedJson.map(({ x, y }) => ({ x: Math.round(x), y: Math.round(y) }));
-  }
-
-  const rawLines = trimmed
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0 && !line.startsWith('#'));
-
-  const lines = rawLines.length > 1 && /^\d+$/.test(rawLines[0] ?? '') ? rawLines.slice(1) : rawLines;
-  const points = lines.map(parsePointLine).filter((point): point is { x: number; y: number } => Boolean(point));
-
-  if (points.length === 0) {
-    throw new Error('Could not parse points from the uploaded file. Use JSON or one point per line.');
-  }
-
-  return points.map(({ x, y }) => ({ x: Math.round(x), y: Math.round(y) }));
-}
-
-function tryParseJsonPoints(text: string): readonly { x: number; y: number }[] | null {
-  try {
-    const value = JSON.parse(text);
-    if (!Array.isArray(value)) return null;
-
-    const points = value.flatMap((item) => {
-      if (Array.isArray(item) && item.length >= 2 && Number.isFinite(item[0]) && Number.isFinite(item[1])) {
-        return [{ x: Number(item[0]), y: Number(item[1]) }];
-      }
-
-      if (
-        item &&
-        typeof item === 'object' &&
-        'x' in item &&
-        'y' in item &&
-        Number.isFinite(item.x) &&
-        Number.isFinite(item.y)
-      ) {
-        return [{ x: Number(item.x), y: Number(item.y) }];
-      }
-
-      return [];
-    });
-
-    return points.length > 0 ? points : null;
-  } catch {
-    return null;
-  }
-}
-
-function parsePointLine(line: string): { x: number; y: number } | null {
-  const parts = line.replace(/[;,]/g, ' ').split(/\s+/).filter(Boolean);
-  if (parts.length < 2) return null;
-
-  const numeric = parts.map((part) => Number(part));
-  const first = numeric[0] ?? Number.NaN;
-  const second = numeric[1] ?? Number.NaN;
-  const third = numeric[2] ?? Number.NaN;
-
-  if (numeric.length >= 2 && Number.isFinite(first) && Number.isFinite(second)) {
-    return { x: first, y: second };
-  }
-
-  if (numeric.length >= 3 && Number.isFinite(second) && Number.isFinite(third)) {
-    return { x: second, y: third };
-  }
-
-  return null;
 }

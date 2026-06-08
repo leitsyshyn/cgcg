@@ -19,7 +19,7 @@ export const datasetFamilies: readonly DatasetFamily[] = [
   },
   {
     name: 'structured',
-    description: 'Deterministic staggered lattice with a seam offset to stress recursive merges.',
+    description: 'Deterministic staggered stress lattice with a seam offset, used as the worst-case-style large-input efficiency demo.',
     seed: 0x51ec7ed,
     generate: generateStructuredStressPoints,
   },
