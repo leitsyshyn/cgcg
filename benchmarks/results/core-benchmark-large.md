@@ -19,11 +19,11 @@ The implementation is intended to run in `O(N log N)`: sorting plus divide-and-c
 
 ## Empirical Evidence
 
-- Generated at: 2026-06-08T16:13:35.431Z
+- Generated at: 2026-06-08T16:19:26.676Z
 - Environment: Node v24.13.1 on darwin arm64
-- Sizes: 100000
+- Sizes: 100000, 1000000
 - Warmup runs per case: 1
-- Measured samples per case: 3
+- Measured samples per case: 2
 - Target sample duration before batching: about 1 ms
 
 ### Dataset Families
@@ -35,22 +35,24 @@ The implementation is intended to run in `O(N log N)`: sorting plus divide-and-c
 
 | N | Median ms | Mean ms | Batch | Edges | Nearest links | T(N)/(N log2 N) us | Observed growth | Expected N log2 N growth | Validation |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
-| 100000 | 743.837 | 776.756 | 1 | 299965 | 100000 | 0.448 | - | - | Skipped brute-force validation for N > 100. |
+| 100000 | 780.794 | 780.794 | 1 | 299965 | 100000 | 0.470 | - | - | Skipped brute-force validation for N > 100. |
+| 1000000 | 12371.863 | 12371.863 | 1 | 2999953 | 1000002 | 0.621 | 15.845 | 12.000 | Skipped brute-force validation for N > 100. |
 
-Interpretation: For N >= 500, the normalized metric stayed within a 1.00x band and adjacent-size growth stayed close to the N log2 N baseline.
-Normalized range factor for N >= 500: 1.000x.
-Maximum adjacent-size growth deviation for N >= 500: 0.0%.
+Interpretation: For N >= 500, the normalized metric stayed within a 1.32x band and adjacent-size growth stayed close to the N log2 N baseline.
+Normalized range factor for N >= 500: 1.320x.
+Maximum adjacent-size growth deviation for N >= 500: 32.0%.
 Consistency verdict: consistent with practical O(N log N).
 
 ### Structured
 
 | N | Median ms | Mean ms | Batch | Edges | Nearest links | T(N)/(N log2 N) us | Observed growth | Expected N log2 N growth | Validation |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
-| 100000 | 538.593 | 544.599 | 1 | 299857 | 100000 | 0.324 | - | - | Skipped brute-force validation for N > 100. |
+| 100000 | 525.561 | 525.561 | 1 | 299857 | 100000 | 0.316 | - | - | Skipped brute-force validation for N > 100. |
+| 1000000 | 7926.911 | 7926.911 | 1 | 2999502 | 1000000 | 0.398 | 15.083 | 12.000 | Skipped brute-force validation for N > 100. |
 
-Interpretation: For N >= 500, the normalized metric stayed within a 1.00x band and adjacent-size growth stayed close to the N log2 N baseline.
-Normalized range factor for N >= 500: 1.000x.
-Maximum adjacent-size growth deviation for N >= 500: 0.0%.
+Interpretation: For N >= 500, the normalized metric stayed within a 1.26x band and adjacent-size growth stayed close to the N log2 N baseline.
+Normalized range factor for N >= 500: 1.257x.
+Maximum adjacent-size growth deviation for N >= 500: 25.7%.
 Consistency verdict: consistent with practical O(N log N).
 
 ## Conclusion

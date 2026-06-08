@@ -30,6 +30,7 @@ interface BenchmarkMeasurement {
 }
 
 interface BenchmarkSummary {
+  readonly sufficientTrendData: boolean;
   readonly consistentWithONLogN: boolean;
   readonly normalizedRangeFactor: number;
   readonly maxGrowthDeviation: number;
@@ -269,6 +270,16 @@ function executeBatch(points: readonly Point[], batchIterations: number) {
 
 function summarizeFamily(measurements: readonly BenchmarkMeasurement[]): BenchmarkSummary {
   const stableWindow = measurements.filter((item) => item.size >= 500);
+  if (stableWindow.length < 2) {
+    return {
+      sufficientTrendData: false,
+      consistentWithONLogN: false,
+      normalizedRangeFactor: 1,
+      maxGrowthDeviation: 0,
+      conclusion: `Only ${stableWindow.length} completed large-N size${stableWindow.length === 1 ? '' : 's'} were measured, so this file is a point measurement rather than a trend check.`,
+    };
+  }
+
   const normalizedValues = stableWindow.map((item) => item.normalizedMsPerNLog2N);
   const normalizedMin = Math.min(...normalizedValues);
   const normalizedMax = Math.max(...normalizedValues);
@@ -283,6 +294,7 @@ function summarizeFamily(measurements: readonly BenchmarkMeasurement[]): Benchma
     : `For N >= 500, the normalized metric spread to a ${formatNumber(normalizedRangeFactor, 2)}x band or adjacent-size growth drifted away from the N log2 N baseline.`;
 
   return {
+    sufficientTrendData: true,
     consistentWithONLogN,
     normalizedRangeFactor,
     maxGrowthDeviation,
@@ -387,18 +399,28 @@ function toMarkdown(output: BenchmarkOutput): string {
     }
     lines.push('');
     lines.push(`Interpretation: ${summary.conclusion}`);
-    lines.push(`Normalized range factor for N >= 500: ${formatNumber(summary.normalizedRangeFactor, 3)}x.`);
-    lines.push(`Maximum adjacent-size growth deviation for N >= 500: ${formatPercent(summary.maxGrowthDeviation)}.`);
-    lines.push(`Consistency verdict: ${summary.consistentWithONLogN ? 'consistent with practical O(N log N)' : 'not cleanly consistent with practical O(N log N)'}.`);
+    if (summary.sufficientTrendData) {
+      lines.push(`Normalized range factor for N >= 500: ${formatNumber(summary.normalizedRangeFactor, 3)}x.`);
+      lines.push(`Maximum adjacent-size growth deviation for N >= 500: ${formatPercent(summary.maxGrowthDeviation)}.`);
+      lines.push(`Consistency verdict: ${summary.consistentWithONLogN ? 'consistent with practical O(N log N)' : 'not cleanly consistent with practical O(N log N)'}.`);
+    } else {
+      lines.push('Consistency verdict: insufficient trend data for an O(N log N) verdict in this file alone.');
+    }
   }
 
   lines.push('');
   lines.push('## Conclusion');
   lines.push('');
-  const allConsistent = Object.values(output.summaryByFamily).every((summary) => summary.consistentWithONLogN);
-  lines.push(allConsistent
-    ? 'Across the tested families, the measured geometry-core timings are consistent with practical `O(N log N)` behavior. This is empirical support, not a proof.'
-    : 'The benchmark collected useful timing evidence, but at least one family did not stay cleanly aligned with a practical `O(N log N)` trend on this machine. Treat the data as empirical observation, not proof.');
+  const familySummaries = Object.values(output.summaryByFamily);
+  const allConsistent = familySummaries.every((summary) => summary.sufficientTrendData && summary.consistentWithONLogN);
+  const hasInsufficientTrendData = familySummaries.some((summary) => !summary.sufficientTrendData);
+  lines.push(
+    hasInsufficientTrendData
+      ? 'This file contains valid point measurements, but not enough completed large-N sizes to judge an `O(N log N)` trend by itself. Use it together with multi-size benchmark files.'
+      : allConsistent
+        ? 'Across the tested families, the measured geometry-core timings are consistent with practical `O(N log N)` behavior. This is empirical support, not a proof.'
+        : 'The benchmark collected useful timing evidence, but at least one family did not stay cleanly aligned with a practical `O(N log N)` trend on this machine. Treat the data as empirical observation, not proof.',
+  );
   lines.push('');
   lines.push('## Limitations');
   lines.push('');

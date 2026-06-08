@@ -38,6 +38,12 @@ npm run build
 npm run benchmark
 ```
 
+Large-scale supplemental runs for `100000` and `1000000` points use a larger Node heap:
+
+```bash
+npm run benchmark:large
+```
+
 The benchmark measures the real geometry core only:
 
 - `src/geometry/run-geometry-core.ts`
@@ -52,6 +58,9 @@ Benchmark artifacts are written to:
 - `benchmarks/results/core-benchmark.json`
 - `benchmarks/results/core-benchmark.csv`
 - `benchmarks/results/core-benchmark.md`
+- `benchmarks/results/core-benchmark-large.json`
+- `benchmarks/results/core-benchmark-large.csv`
+- `benchmarks/results/core-benchmark-large.md`
 
 The benchmark currently uses two deterministic dataset families across sizes `100` through `10000`:
 

@@ -1,0 +1,5 @@
+family,size,batchIterations,edgeCount,nearestLinkCount,minMs,medianMs,meanMs,maxMs,normalizedMsPerNLog2N,normalizedUsPerNLog2N,expectedGrowthFromPrevious,observedGrowthFromPrevious,validationChecked,validationOk,validationMessage,samplesMs
+random,100000,1,299965,100000,716.560917,780.793813,780.793813,845.026708,0.000470084716,0.470084716,,,false,true,"Skipped brute-force validation for N > 100.","845.026708|716.560917"
+random,1000000,1,2999953,1000002,11835.653916,12371.862875,12371.862875,12908.071834,0.000620716971,0.620716971,12.000000,15.845237,false,true,"Skipped brute-force validation for N > 100.","12908.071834|11835.653916"
+structured,100000,1,299857,100000,524.519584,525.560688,525.560688,526.601792,0.000316419063,0.316419063,,,false,true,"Skipped brute-force validation for N > 100.","526.601792|524.519584"
+structured,1000000,1,2999502,1000000,7289.627833,7926.911313,7926.911313,8564.194792,0.000397706346,0.397706346,12.000000,15.082771,false,true,"Skipped brute-force validation for N > 100.","7289.627833|8564.194792"
