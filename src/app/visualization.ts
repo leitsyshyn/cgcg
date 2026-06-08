@@ -1,5 +1,7 @@
 export type VisualizationMode = 'step' | 'phase' | 'result';
 
+export type CanvasInputMode = 'pan' | 'add';
+
 export interface PointLabelOptions {
   readonly inputLabels: boolean;
   readonly sortedLabels: boolean;

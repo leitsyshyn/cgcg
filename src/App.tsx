@@ -1,6 +1,6 @@
-import { type ChangeEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Cpu, Eraser, GitMerge, Pause, Play, Sparkles, Target, Upload, Waypoints } from 'lucide-react';
-import { GeometryCanvas } from './components/GeometryCanvas';
+import { GeometryCanvas, type GeometryCanvasHandle } from './components/GeometryCanvas';
 import { ResultPanel } from './components/ResultPanel';
 import { TraceLog } from './components/TraceLog';
 import type { AlgorithmResult, AppPoint } from './app/types';
@@ -13,6 +13,7 @@ import {
   defaultEdgeLabelOptions,
   defaultPointLabelOptions,
   defaultToggles,
+  type CanvasInputMode,
   type EdgeLabelOptions,
   type PointLabelOptions,
   type VisualizationMode,
@@ -27,6 +28,9 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
 const CANVAS_WIDTH = 960;
 const CANVAS_HEIGHT = 620;
+const DEFAULT_RANDOM_COUNT = 18;
+const MAX_RANDOM_COUNT = 10_000;
+const RANDOM_WORLD_EXTENT = 5_000;
 
 function idleFrame(points: readonly AppPoint[]): TraceFrame {
   return {
@@ -45,17 +49,21 @@ function idleFrame(points: readonly AppPoint[]): TraceFrame {
     nearestArrows: [],
     activeDistance: null,
     currentPhase: 'idle',
-    explanation: 'Click inside the plane to add points, then run the algorithm.',
+    explanation: 'Pan the plane, then use Add Points mode or Shift+click to place points.',
   };
 }
 
 export default function App() {
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
+  const canvasRef = useRef<GeometryCanvasHandle | null>(null);
+  const pendingViewActionRef = useRef<'fit' | 'reset' | null>(null);
   const [points, setPoints] = useState<AppPoint[]>([]);
   const [mode, setMode] = useState<VisualizationMode>('step');
   const [toggles, setToggles] = useState<VisualizationToggles>(defaultToggles);
   const [pointLabelOptions, setPointLabelOptions] = useState<PointLabelOptions>(defaultPointLabelOptions);
   const [edgeLabelOptions, setEdgeLabelOptions] = useState<EdgeLabelOptions>(defaultEdgeLabelOptions);
+  const [canvasInputMode, setCanvasInputMode] = useState<CanvasInputMode>('pan');
+  const [randomCount, setRandomCount] = useState(DEFAULT_RANDOM_COUNT);
   const [result, setResult] = useState<AlgorithmResult | null>(null);
   const [resultTraceLevel, setResultTraceLevel] = useState<TraceLevel | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -94,6 +102,19 @@ export default function App() {
     return () => window.clearInterval(timer);
   }, [effectiveMode, maxStep, playing, speedMs]);
 
+  useEffect(() => {
+    const action = pendingViewActionRef.current;
+    if (!action) return;
+
+    if (action === 'fit') {
+      canvasRef.current?.fitToPoints();
+    } else {
+      canvasRef.current?.resetView();
+    }
+
+    pendingViewActionRef.current = null;
+  }, [points]);
+
   function resetExecution(): void {
     setResult(null);
     setResultTraceLevel(null);
@@ -103,6 +124,7 @@ export default function App() {
   }
 
   function replacePoints(nextPoints: readonly { x: number; y: number }[]): void {
+    pendingViewActionRef.current = nextPoints.length > 0 ? 'fit' : 'reset';
     setPoints(
       nextPoints.map((point, index) => ({
         id: `p${index + 1}`,
@@ -115,7 +137,7 @@ export default function App() {
     resetExecution();
   }
 
-  function addPoint(x: number, y: number): void {
+  const addPoint = useCallback((x: number, y: number): void => {
     setPoints((current) => [
       ...current,
       {
@@ -127,21 +149,20 @@ export default function App() {
       },
     ]);
     resetExecution();
-  }
+  }, []);
 
   function generateRandom(): void {
-    const count = 18;
+    const count = clampRandomCount(randomCount);
     replacePoints(
       Array.from({ length: count }, () => ({
-        x: 60 + Math.round(Math.random() * (CANVAS_WIDTH - 120)),
-        y: 60 + Math.round(Math.random() * (CANVAS_HEIGHT - 120)),
+        x: Math.round((Math.random() * 2 - 1) * RANDOM_WORLD_EXTENT),
+        y: Math.round((Math.random() * 2 - 1) * RANDOM_WORLD_EXTENT),
       })),
     );
   }
 
   function clear(): void {
-    setPoints([]);
-    resetExecution();
+    replacePoints([]);
   }
 
   function openUpload(): void {
@@ -232,10 +253,12 @@ export default function App() {
           <Card className="min-h-0 py-0">
             <CardContent className="h-full min-h-0 p-0">
               <GeometryCanvas
+                ref={canvasRef}
                 frame={frame}
                 toggles={toggles}
                 pointLabelOptions={pointLabelOptions}
                 edgeLabelOptions={edgeLabelOptions}
+                inputMode={canvasInputMode}
                 width={CANVAS_WIDTH}
                 height={CANVAS_HEIGHT}
                 onAddPoint={addPoint}
@@ -276,6 +299,54 @@ export default function App() {
                         <Eraser data-icon="inline-start" />
                         Clear
                       </Button>
+                    </div>
+
+                    <Field>
+                      <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                        <FieldLabel htmlFor="random-count">Random count</FieldLabel>
+                        <span>2-{MAX_RANDOM_COUNT}</span>
+                      </div>
+                      <input
+                        id="random-count"
+                        type="number"
+                        min={2}
+                        max={MAX_RANDOM_COUNT}
+                        step={1}
+                        value={randomCount}
+                        onChange={(event) => setRandomCount(event.target.value === '' ? 0 : Number(event.target.value))}
+                        className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                      />
+                    </Field>
+
+                    <div className="grid gap-2">
+                      <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                        <span>Interaction</span>
+                        <span>Shift+click adds in any mode</span>
+                      </div>
+                      <ToggleGroup
+                        type="single"
+                        variant="outline"
+                        value={canvasInputMode}
+                        onValueChange={(value) => {
+                          if (value) setCanvasInputMode(value as CanvasInputMode);
+                        }}
+                        className="grid w-full grid-cols-2"
+                      >
+                        <ToggleGroupItem value="pan" className="h-9 w-full text-sm">
+                          Pan / Zoom
+                        </ToggleGroupItem>
+                        <ToggleGroupItem value="add" className="h-9 w-full text-sm">
+                          Add Points
+                        </ToggleGroupItem>
+                      </ToggleGroup>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button type="button" variant="outline" size="sm" className="h-9" onClick={() => canvasRef.current?.fitToPoints()} disabled={points.length === 0}>
+                          Fit View
+                        </Button>
+                        <Button type="button" variant="outline" size="sm" className="h-9" onClick={() => canvasRef.current?.resetView()}>
+                          Reset View
+                        </Button>
+                      </div>
                     </div>
                   </FieldGroup>
                 </FieldSet>
@@ -390,7 +461,7 @@ export default function App() {
                     </FieldGroup>
                   </FieldSet>
 
-                  <FieldSet>
+                  <FieldSet className="xl:col-span-2">
                     <FieldLegend variant="label">Layers</FieldLegend>
                     <FieldGroup className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-x-4 gap-y-2">
                       <LayerField id="layer-delaunay" label="Delaunay" color="var(--canvas-edge)" checked={toggles.delaunayEdges} onCheckedChange={(checked) => updateLayer('delaunayEdges', checked)} />
@@ -404,6 +475,8 @@ export default function App() {
                 </div>
 
                 <div className="grid gap-1 text-xs text-muted-foreground">
+                  <p>Drag to pan. Use the wheel or trackpad pinch to zoom.</p>
+                  <p>Point and edge labels are hidden automatically in dense views.</p>
                   {points.length > 100 ? <p>Detailed trace disabled above 100 points.</p> : null}
                   {mode === 'step' && resultTraceLevel === null && !result ? <p>Run again after switching back to step.</p> : null}
                   {error ? <span className="text-destructive">{error}</span> : null}
@@ -454,6 +527,11 @@ function LayerField({
       </FieldLabel>
     </Field>
   );
+}
+
+function clampRandomCount(value: number): number {
+  if (!Number.isFinite(value)) return DEFAULT_RANDOM_COUNT;
+  return Math.max(2, Math.min(MAX_RANDOM_COUNT, Math.round(value)));
 }
 
 function parseUploadedPoints(text: string): readonly { x: number; y: number }[] {
