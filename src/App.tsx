@@ -28,9 +28,13 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
 const CANVAS_WIDTH = 960;
 const CANVAS_HEIGHT = 620;
-const DEFAULT_RANDOM_COUNT = 18;
-const MAX_RANDOM_COUNT = 10_000;
-const RANDOM_WORLD_EXTENT = 5_000;
+const DEFAULT_POINT_COUNT = 18;
+const MAX_POINT_COUNT = 10_000;
+const TRACE_OFF_POINT_LIMIT = 2_000;
+const DEFAULT_GENERATION_EXTENT = 420;
+const MAX_GENERATION_EXTENT = 10_000;
+
+type GenerationAreaMode = 'spread' | 'viewport';
 
 function idleFrame(points: readonly AppPoint[]): TraceFrame {
   return {
@@ -63,7 +67,9 @@ export default function App() {
   const [pointLabelOptions, setPointLabelOptions] = useState<PointLabelOptions>(defaultPointLabelOptions);
   const [edgeLabelOptions, setEdgeLabelOptions] = useState<EdgeLabelOptions>(defaultEdgeLabelOptions);
   const [canvasInputMode, setCanvasInputMode] = useState<CanvasInputMode>('pan');
-  const [randomCount, setRandomCount] = useState(DEFAULT_RANDOM_COUNT);
+  const [pointCount, setPointCount] = useState(DEFAULT_POINT_COUNT);
+  const [generationAreaMode, setGenerationAreaMode] = useState<GenerationAreaMode>('spread');
+  const [generationExtent, setGenerationExtent] = useState(DEFAULT_GENERATION_EXTENT);
   const [result, setResult] = useState<AlgorithmResult | null>(null);
   const [resultTraceLevel, setResultTraceLevel] = useState<TraceLevel | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -78,13 +84,19 @@ export default function App() {
     [effectiveMode, result],
   );
   const maxStep = Math.max(0, events.length - 1);
-  const activeTraceIndex = result ? (effectiveMode === 'result' ? maxStep : Math.min(step, maxStep)) : -1;
+  const activeTraceIndex = result
+    ? (events.length === 0 ? -1 : effectiveMode === 'result' ? maxStep : Math.min(step, maxStep))
+    : -1;
   const frame = useMemo(
-    () => (result ? projectTraceFrame(events, activeTraceIndex) : idleFrame(points)),
-    [activeTraceIndex, events, points, result],
+    () => (result
+      ? (events.length > 0 ? projectTraceFrame(events, activeTraceIndex) : resultFrame(result, resultTraceLevel === 'off'))
+      : idleFrame(points)),
+    [activeTraceIndex, events, points, result, resultTraceLevel],
   );
   const visibleTraceEvents = result ? events.slice(0, activeTraceIndex + 1) : [];
   const activeEventId = activeTraceIndex >= 0 ? (events[activeTraceIndex]?.id ?? null) : null;
+  const traceSkipped = resultTraceLevel === 'off';
+  const playbackDisabled = !result || effectiveMode === 'result' || events.length === 0;
 
   useEffect(() => {
     if (!playing || effectiveMode === 'result') return;
@@ -152,13 +164,19 @@ export default function App() {
   }, []);
 
   function generateRandom(): void {
-    const count = clampRandomCount(randomCount);
-    replacePoints(
-      Array.from({ length: count }, () => ({
-        x: Math.round((Math.random() * 2 - 1) * RANDOM_WORLD_EXTENT),
-        y: Math.round((Math.random() * 2 - 1) * RANDOM_WORLD_EXTENT),
-      })),
-    );
+    const count = clampPointCount(pointCount);
+    const bounds = generationBounds(generationAreaMode, clampGenerationExtent(generationExtent), canvasRef.current);
+    setPointCount(count);
+    setGenerationExtent((current) => clampGenerationExtent(current));
+    replacePoints(generateRandomPoints(count, bounds));
+  }
+
+  function generateStructured(): void {
+    const count = clampPointCount(pointCount);
+    const bounds = generationBounds(generationAreaMode, clampGenerationExtent(generationExtent), canvasRef.current);
+    setPointCount(count);
+    setGenerationExtent((current) => clampGenerationExtent(current));
+    replacePoints(generateStructuredPoints(count, bounds));
   }
 
   function clear(): void {
@@ -194,7 +212,11 @@ export default function App() {
     setPlaying(false);
 
     const nextMode: VisualizationMode = points.length > 100 ? 'result' : effectiveMode;
-    const runTraceLevel: TraceLevel = points.length > 100 ? 'phase' : traceLevel;
+    const runTraceLevel: TraceLevel = points.length > TRACE_OFF_POINT_LIMIT
+      ? 'off'
+      : points.length > 100
+        ? 'phase'
+        : traceLevel;
 
     if (nextMode !== mode) setMode(nextMode);
 
@@ -271,11 +293,12 @@ export default function App() {
             points={result?.points ?? points}
             activeEventId={activeEventId}
             pointCount={points.length}
-            stepText={result ? `${activeTraceIndex + 1}/${events.length}` : '0/0'}
+            stepText={result && events.length > 0 ? `${activeTraceIndex + 1}/${events.length}` : '0/0'}
             phase={frame.currentPhase}
             mode={effectiveMode}
             runtimeMs={result?.runtimeMs ?? null}
             explanation={frame.explanation}
+            traceSkipped={traceSkipped}
           />
         </section>
 
@@ -286,7 +309,7 @@ export default function App() {
                 <FieldSet>
                   <FieldLegend variant="label">Input</FieldLegend>
                   <FieldGroup className="gap-2">
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-2 gap-2">
                       <Button type="button" variant="outline" size="sm" className="h-9" onClick={openUpload}>
                         <Upload data-icon="inline-start" />
                         Upload
@@ -294,6 +317,10 @@ export default function App() {
                       <Button type="button" variant="outline" size="sm" className="h-9" onClick={generateRandom}>
                         <Sparkles data-icon="inline-start" />
                         Random
+                      </Button>
+                      <Button type="button" variant="outline" size="sm" className="h-9" onClick={generateStructured}>
+                        <GitMerge data-icon="inline-start" />
+                        Structured
                       </Button>
                       <Button type="button" variant="outline" size="sm" className="h-9" onClick={clear}>
                         <Eraser data-icon="inline-start" />
@@ -303,18 +330,61 @@ export default function App() {
 
                     <Field>
                       <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-                        <FieldLabel htmlFor="random-count">Random count</FieldLabel>
-                        <span>2-{MAX_RANDOM_COUNT}</span>
+                        <FieldLabel htmlFor="point-count">Point count</FieldLabel>
+                        <span>2-{MAX_POINT_COUNT}</span>
                       </div>
                       <input
-                        id="random-count"
+                        id="point-count"
                         type="number"
                         min={2}
-                        max={MAX_RANDOM_COUNT}
+                        max={MAX_POINT_COUNT}
                         step={1}
-                        value={randomCount}
-                        onChange={(event) => setRandomCount(event.target.value === '' ? 0 : Number(event.target.value))}
+                        value={pointCount}
+                        onChange={(event) => setPointCount(event.target.value === '' ? 0 : Number(event.target.value))}
+                        onBlur={() => setPointCount((current) => clampPointCount(current))}
                         className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                      />
+                    </Field>
+
+                    <div className="grid gap-2">
+                      <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                        <span>Generation area</span>
+                        <span>{generationAreaMode === 'viewport' ? 'Current view' : 'Centered spread'}</span>
+                      </div>
+                      <ToggleGroup
+                        type="single"
+                        variant="outline"
+                        value={generationAreaMode}
+                        onValueChange={(value) => {
+                          if (value) setGenerationAreaMode(value as GenerationAreaMode);
+                        }}
+                        className="grid w-full grid-cols-2"
+                      >
+                        <ToggleGroupItem value="spread" className="h-9 w-full text-sm">
+                          Spread
+                        </ToggleGroupItem>
+                        <ToggleGroupItem value="viewport" className="h-9 w-full text-sm">
+                          Viewport
+                        </ToggleGroupItem>
+                      </ToggleGroup>
+                    </div>
+
+                    <Field>
+                      <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                        <FieldLabel htmlFor="generation-extent">Spread</FieldLabel>
+                        <span>+/- {clampGenerationExtent(generationExtent)}</span>
+                      </div>
+                      <input
+                        id="generation-extent"
+                        type="number"
+                        min={40}
+                        max={MAX_GENERATION_EXTENT}
+                        step={10}
+                        value={generationExtent}
+                        onChange={(event) => setGenerationExtent(event.target.value === '' ? 0 : Number(event.target.value))}
+                        onBlur={() => setGenerationExtent((current) => clampGenerationExtent(current))}
+                        disabled={generationAreaMode === 'viewport'}
+                        className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-50"
                       />
                     </Field>
 
@@ -381,15 +451,15 @@ export default function App() {
                   <FieldLegend variant="label">Playback</FieldLegend>
                   <FieldGroup className="gap-3">
                     <div className="grid grid-cols-3 gap-2">
-                      <Button type="button" variant="outline" size="sm" className="h-9" onClick={() => setStep((value) => Math.max(0, value - 1))} disabled={!result || effectiveMode === 'result'}>
+                      <Button type="button" variant="outline" size="sm" className="h-9" onClick={() => setStep((value) => Math.max(0, value - 1))} disabled={playbackDisabled}>
                         <ChevronLeft data-icon="inline-start" />
                         Prev
                       </Button>
-                      <Button type="button" variant="outline" size="sm" className="h-9" onClick={() => setPlaying((value) => !value)} disabled={!result || effectiveMode === 'result'}>
+                      <Button type="button" variant="outline" size="sm" className="h-9" onClick={() => setPlaying((value) => !value)} disabled={playbackDisabled}>
                         {playing ? <Pause data-icon="inline-start" /> : <Play data-icon="inline-start" />}
                         {playing ? 'Pause' : 'Play'}
                       </Button>
-                      <Button type="button" variant="outline" size="sm" className="h-9" onClick={() => setStep((value) => Math.min(maxStep, value + 1))} disabled={!result || effectiveMode === 'result'}>
+                      <Button type="button" variant="outline" size="sm" className="h-9" onClick={() => setStep((value) => Math.min(maxStep, value + 1))} disabled={playbackDisabled}>
                         Next
                         <ChevronRight data-icon="inline-end" />
                       </Button>
@@ -407,7 +477,7 @@ export default function App() {
                         step={1}
                         value={[Math.max(0, activeTraceIndex)]}
                         onValueChange={(value) => setStep(value[0] ?? 0)}
-                        disabled={!result || effectiveMode === 'result'}
+                        disabled={playbackDisabled}
                       />
                     </Field>
 
@@ -423,6 +493,7 @@ export default function App() {
                         step={50}
                         value={[1700 - speedMs]}
                         onValueChange={(value) => setSpeedMs(1700 - (value[0] ?? 1250))}
+                        disabled={playbackDisabled}
                       />
                     </Field>
                   </FieldGroup>
@@ -476,8 +547,10 @@ export default function App() {
 
                 <div className="grid gap-1 text-xs text-muted-foreground">
                   <p>Drag to pan. Use the wheel or trackpad pinch to zoom.</p>
+                  <p>Random and structured generators can use a centered spread or the current viewport bounds.</p>
                   <p>Point and edge labels are hidden automatically in dense views.</p>
-                  {points.length > 100 ? <p>Detailed trace disabled above 100 points.</p> : null}
+                  {points.length > TRACE_OFF_POINT_LIMIT ? <p>Trace recording is disabled above {TRACE_OFF_POINT_LIMIT.toLocaleString()} points.</p> : null}
+                  {points.length > 100 && points.length <= TRACE_OFF_POINT_LIMIT ? <p>Detailed trace disabled above 100 points.</p> : null}
                   {mode === 'step' && resultTraceLevel === null && !result ? <p>Run again after switching back to step.</p> : null}
                   {error ? <span className="text-destructive">{error}</span> : null}
                 </div>
@@ -529,9 +602,173 @@ function LayerField({
   );
 }
 
-function clampRandomCount(value: number): number {
-  if (!Number.isFinite(value)) return DEFAULT_RANDOM_COUNT;
-  return Math.max(2, Math.min(MAX_RANDOM_COUNT, Math.round(value)));
+function resultFrame(result: AlgorithmResult, traceSkipped: boolean): TraceFrame {
+  return {
+    index: -1,
+    points: result.points.map(tracePoint),
+    visibleEdges: result.edges,
+    highlightedEdges: [],
+    deletedEdges: [],
+    activeSubset: [],
+    splitLines: [],
+    activeBaseEdge: null,
+    candidates: [],
+    activeTriangle: null,
+    testedPoint: null,
+    circumcircle: null,
+    nearestArrows: result.nearestNeighbors.flatMap((item) =>
+      item.neighbors.map((neighbor) => ({
+        from: result.points[item.point]?.id ?? '',
+        to: result.points[neighbor]?.id ?? '',
+      })),
+    ),
+    activeDistance: null,
+    currentPhase: 'algorithm-complete',
+    explanation: traceSkipped
+      ? 'Algorithm completed. Trace recording was skipped for this input size.'
+      : 'Algorithm completed.',
+  };
+}
+
+interface GenerationBounds {
+  readonly minX: number;
+  readonly maxX: number;
+  readonly minY: number;
+  readonly maxY: number;
+}
+
+function clampPointCount(value: number): number {
+  if (!Number.isFinite(value)) return DEFAULT_POINT_COUNT;
+  return Math.max(2, Math.min(MAX_POINT_COUNT, Math.round(value)));
+}
+
+function clampGenerationExtent(value: number): number {
+  if (!Number.isFinite(value)) return DEFAULT_GENERATION_EXTENT;
+  return Math.max(40, Math.min(MAX_GENERATION_EXTENT, Math.round(value)));
+}
+
+function generationBounds(
+  mode: GenerationAreaMode,
+  extent: number,
+  canvas: GeometryCanvasHandle | null,
+): GenerationBounds {
+  if (mode === 'viewport') {
+    const viewportBounds = canvas?.getViewportBounds();
+    if (viewportBounds) return viewportBounds;
+  }
+
+  return {
+    minX: -extent,
+    maxX: extent,
+    minY: -extent,
+    maxY: extent,
+  };
+}
+
+function generateRandomPoints(count: number, bounds: GenerationBounds): readonly { x: number; y: number }[] {
+  const safeBounds = ensureRandomCapacity(bounds, count);
+  const generated: { x: number; y: number }[] = [];
+  const used = new Set<string>();
+  const minX = Math.ceil(safeBounds.minX);
+  const maxX = Math.floor(safeBounds.maxX);
+  const minY = Math.ceil(safeBounds.minY);
+  const maxY = Math.floor(safeBounds.maxY);
+
+  while (generated.length < count) {
+    const x = randomInteger(minX, maxX);
+    const y = randomInteger(minY, maxY);
+    const key = `${x}:${y}`;
+    if (used.has(key)) continue;
+    used.add(key);
+    generated.push({ x, y });
+  }
+
+  return generated;
+}
+
+function generateStructuredPoints(count: number, bounds: GenerationBounds): readonly { x: number; y: number }[] {
+  const columns = Math.max(2, Math.ceil(Math.sqrt(count)));
+  const rows = Math.ceil(count / columns);
+  const safeBounds = ensureStructuredCapacity(bounds, columns, rows);
+  const minX = Math.round(safeBounds.minX);
+  const maxX = Math.round(safeBounds.maxX);
+  const minY = Math.round(safeBounds.minY);
+  const maxY = Math.round(safeBounds.maxY);
+  const width = Math.max(maxX - minX, columns - 1);
+  const height = Math.max(maxY - minY, rows - 1);
+
+  return Array.from({ length: count }, (_, index) => {
+    const row = Math.floor(index / columns);
+    const column = index % columns;
+    const baseX = columns === 1 ? minX : minX + Math.floor((column * width) / (columns - 1));
+    const baseY = rows === 1 ? maxY : maxY - Math.floor((row * height) / (rows - 1));
+    const stagger = row % 2 === 0 ? 0 : Math.max(1, Math.floor(width / Math.max(columns * 3, 3)));
+    const nextBaseX = columns === 1 ? maxX : minX + Math.floor(((column + 1) * width) / (columns - 1));
+    const maxStagger = column < columns - 1 ? Math.max(0, nextBaseX - baseX - 1) : 0;
+
+    return {
+      x: baseX + Math.min(stagger, maxStagger),
+      y: baseY,
+    };
+  });
+}
+
+function ensureRandomCapacity(bounds: GenerationBounds, count: number): GenerationBounds {
+  let safeBounds = normalizeBounds(bounds);
+
+  while (integerCapacity(safeBounds) < count) {
+    safeBounds = expandBounds(safeBounds, 1.25);
+  }
+
+  return safeBounds;
+}
+
+function ensureStructuredCapacity(bounds: GenerationBounds, columns: number, rows: number): GenerationBounds {
+  const safeBounds = normalizeBounds(bounds);
+  const centerX = (safeBounds.minX + safeBounds.maxX) / 2;
+  const centerY = (safeBounds.minY + safeBounds.maxY) / 2;
+  const halfWidth = Math.max((safeBounds.maxX - safeBounds.minX) / 2, (columns - 1) / 2);
+  const halfHeight = Math.max((safeBounds.maxY - safeBounds.minY) / 2, (rows - 1) / 2);
+
+  return {
+    minX: centerX - halfWidth,
+    maxX: centerX + halfWidth,
+    minY: centerY - halfHeight,
+    maxY: centerY + halfHeight,
+  };
+}
+
+function normalizeBounds(bounds: GenerationBounds): GenerationBounds {
+  return {
+    minX: Math.min(bounds.minX, bounds.maxX),
+    maxX: Math.max(bounds.minX, bounds.maxX),
+    minY: Math.min(bounds.minY, bounds.maxY),
+    maxY: Math.max(bounds.minY, bounds.maxY),
+  };
+}
+
+function integerCapacity(bounds: GenerationBounds): number {
+  const width = Math.max(1, Math.floor(bounds.maxX) - Math.ceil(bounds.minX) + 1);
+  const height = Math.max(1, Math.floor(bounds.maxY) - Math.ceil(bounds.minY) + 1);
+  return width * height;
+}
+
+function expandBounds(bounds: GenerationBounds, multiplier: number): GenerationBounds {
+  const centerX = (bounds.minX + bounds.maxX) / 2;
+  const centerY = (bounds.minY + bounds.maxY) / 2;
+  const halfWidth = Math.max(1, ((bounds.maxX - bounds.minX) / 2) * multiplier);
+  const halfHeight = Math.max(1, ((bounds.maxY - bounds.minY) / 2) * multiplier);
+
+  return {
+    minX: centerX - halfWidth,
+    maxX: centerX + halfWidth,
+    minY: centerY - halfHeight,
+    maxY: centerY + halfHeight,
+  };
+}
+
+function randomInteger(min: number, max: number): number {
+  return min + Math.floor(Math.random() * (max - min + 1));
 }
 
 function parseUploadedPoints(text: string): readonly { x: number; y: number }[] {

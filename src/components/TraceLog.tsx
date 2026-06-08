@@ -18,6 +18,7 @@ interface TraceLogProps {
   readonly mode: VisualizationMode;
   readonly runtimeMs: number | null;
   readonly explanation: string;
+  readonly traceSkipped: boolean;
 }
 
 export function TraceLog({
@@ -30,6 +31,7 @@ export function TraceLog({
   mode,
   runtimeMs,
   explanation,
+  traceSkipped,
 }: TraceLogProps) {
   const pointLookup = useMemo(() => createPointLookup(points), [points]);
 
@@ -51,7 +53,7 @@ export function TraceLog({
         <ScrollArea className="h-full min-h-0">
           {events.length === 0 ? (
             <div className="flex min-h-full items-center justify-center px-4 text-sm text-muted-foreground">
-              Run the algorithm to populate the trace.
+              {traceSkipped ? 'Trace skipped for very large inputs.' : 'Run the algorithm to populate the trace.'}
             </div>
           ) : (
             <div className="flex flex-col">

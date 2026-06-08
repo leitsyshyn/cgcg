@@ -17,5 +17,5 @@
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true
   },
-  "include": ["vite.config.ts"]
+  "include": ["vite.config.ts", "benchmarks/**/*.ts"]
 }

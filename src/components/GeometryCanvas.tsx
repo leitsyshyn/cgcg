@@ -27,6 +27,7 @@ interface GeometryCanvasProps {
 export interface GeometryCanvasHandle {
   resetView: () => void;
   fitToPoints: () => void;
+  getViewportBounds: () => { minX: number; maxX: number; minY: number; maxY: number };
 }
 
 interface RenderLine {
@@ -48,7 +49,7 @@ interface EdgeLabel {
 const GRID_STEP = 40;
 const EDGE_LABEL_OFFSET = 12;
 const DRAG_THRESHOLD_PX = 4;
-const MIN_ZOOM = 0.35;
+const MIN_ZOOM = 0.02;
 const MAX_ZOOM = 24;
 const MAX_POINT_LABELS = 500;
 const MAX_EDGE_LABELS = 250;
@@ -139,6 +140,9 @@ export const GeometryCanvas = memo(forwardRef<GeometryCanvasHandle, GeometryCanv
     },
     fitToPoints() {
       applyZoomTransform(buildFitTransform(frame.points, width, height));
+    },
+    getViewportBounds() {
+      return viewportBoundsFromTransform(zoomTransformRef.current, width, height);
     },
   }), [frame.points, height, width]);
 
@@ -579,4 +583,18 @@ function buildFitTransform(points: readonly TracePoint[], width: number, height:
   return zoomIdentity
     .translate(width / 2 - scale * centerX, height / 2 - scale * centerY)
     .scale(scale);
+}
+
+function viewportBoundsFromTransform(transform: ZoomTransform, width: number, height: number): { minX: number; maxX: number; minY: number; maxY: number } {
+  const [topLeftX, topLeftY] = transform.invert([0, 0]);
+  const [bottomRightX, bottomRightY] = transform.invert([width, height]);
+  const topLeft = screenToWorld(topLeftX, topLeftY, width, height);
+  const bottomRight = screenToWorld(bottomRightX, bottomRightY, width, height);
+
+  return {
+    minX: Math.min(topLeft.x, bottomRight.x),
+    maxX: Math.max(topLeft.x, bottomRight.x),
+    minY: Math.min(topLeft.y, bottomRight.y),
+    maxY: Math.max(topLeft.y, bottomRight.y),
+  };
 }

@@ -32,18 +32,50 @@ npm test
 npm run build
 ```
 
+## Benchmark
+
+```bash
+npm run benchmark
+```
+
+The benchmark measures the real geometry core only:
+
+- `src/geometry/run-geometry-core.ts`
+- `src/geometry/delaunay-triangulation.ts`
+- `src/geometry/adjacency-graph.ts`
+- `src/geometry/nearest-neighbors.ts`
+
+It runs with trace disabled and excludes dataset generation, brute-force validation, React state updates, and D3/SVG rendering from the timed section.
+
+Benchmark artifacts are written to:
+
+- `benchmarks/results/core-benchmark.json`
+- `benchmarks/results/core-benchmark.csv`
+- `benchmarks/results/core-benchmark.md`
+
+The benchmark currently uses two deterministic dataset families across sizes `100` through `10000`:
+
+- `random`: seeded duplicate-free points in a large square;
+- `structured`: deterministic staggered lattice with a seam offset for merge stress.
+
+The markdown summary reports both the theoretical `O(N log N)` claim and separate empirical timing evidence, including the normalized metric `T(N) / (N log2 N)`.
+
 ## How To Use
 
-1. Click inside the working area to manually add points.
-2. Use `Random small set` for a small demonstration input.
-3. Use `Structured grid` for a regular test input.
-4. Use `Clear/reset` to remove the current input and trace.
-5. Press `Run algorithm`.
-6. Choose `Step mode`, `Phase mode`, or `Result-only mode`.
-7. Use `Prev`, `Next`, `Play/Pause`, speed, and step controls to inspect the trace.
-8. Toggle labels, Delaunay edges, split lines, candidate edges, circumcircles, deleted edges, and nearest-neighbor arrows.
+1. Pan the plane, then use `Add Points` mode or `Shift`+click to place points manually.
+2. Set `Point count` before using the generators.
+3. Choose a generation area. `Spread` generates around the plane origin inside a configurable centered range. `Viewport` generates inside the current visible canvas area.
+4. Use `Random` for a general demo input.
+5. Use `Structured` for a deterministic stress-style lattice input.
+6. Use `Upload` to load points from `.txt`, `.csv`, or `.json`.
+7. Use `Clear` to remove the current input and trace.
+8. Use `Fit View` or `Reset View` to manage the viewport.
+9. Press `Run`.
+10. Choose `Step`, `Phase`, or `Result` mode.
+11. Use `Prev`, `Next`, `Play/Pause`, speed, and step controls to inspect the trace when tracing is available.
+12. Toggle labels, Delaunay edges, split lines, candidate edges, circumcircles, deleted edges, and nearest-neighbor arrows.
 
-For `N <= 100`, detailed step tracing is available. For `N > 100`, detailed tracing is disabled and the UI switches to result-oriented phase playback.
+For `N <= 100`, detailed step tracing is available. For `100 < N <= 2000`, the UI switches to result-oriented phase playback. For `N > 2000`, trace recording is disabled so large runs remain usable while final results and overlays still render.
 
 ## Algorithmic Flow
 
@@ -142,4 +174,4 @@ The test suite covers:
 
 The theoretical justification used by the app is the lecture property that each nearest neighbor of a site shares a Voronoi edge with it. Since the Delaunay triangulation is the dual graph of the Voronoi diagram, nearest-neighbor candidates are adjacent in the Delaunay graph. After building Delaunay triangulation in `O(N log N)`, all nearest neighbors can be found by scanning only Delaunay adjacency rather than all point pairs.
 
-There is intentionally no benchmark screen, benchmark chart, benchmark report, benchmark table, or performance experiment in this project.
+Practical timing evidence is now tracked by the benchmark artifacts under `benchmarks/results/`. Those results are empirical measurements, not a proof of asymptotic complexity.

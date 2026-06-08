@@ -1,0 +1,494 @@
+{
+  "generatedAt": "2026-06-08T16:08:38.875Z",
+  "nodeVersion": "v24.13.1",
+  "platform": "darwin",
+  "architecture": "arm64",
+  "workingDirectory": "/Users/tymofii.leitsyshyn/Personal/cgcg",
+  "timedScope": "runGeometryCore(points) = delaunayTriangulation + adjacencyGraph + nearestNeighbors",
+  "excludedFromTiming": [
+    "dataset generation",
+    "trace recording and projection",
+    "React and D3 rendering",
+    "app result mapping",
+    "brute-force validation",
+    "file output"
+  ],
+  "traceLevel": "off",
+  "config": {
+    "sizes": [
+      100,
+      250,
+      500,
+      1000,
+      2000,
+      5000,
+      10000
+    ],
+    "warmupRuns": 2,
+    "sampleRuns": 9,
+    "targetSampleMs": 25,
+    "maxBatchIterations": 128
+  },
+  "datasetFamilies": [
+    {
+      "name": "random",
+      "description": "Seeded duplicate-free integer points spread across a large square.",
+      "seed": 1592639710
+    },
+    {
+      "name": "structured",
+      "description": "Deterministic staggered lattice with a seam offset to stress recursive merges.",
+      "seed": 85903341
+    }
+  ],
+  "results": [
+    {
+      "family": "random",
+      "size": 100,
+      "batchIterations": 22,
+      "edgeCount": 284,
+      "nearestLinkCount": 100,
+      "samplesMs": [
+        0.28366286363636367,
+        0.24533331818181833,
+        0.22791100000000017,
+        0.22229736363636346,
+        0.24265340909090904,
+        0.22850754545454519,
+        0.23899431818181877,
+        0.22566286363636384,
+        0.24320072727272707
+      ],
+      "minMs": 0.22229736363636346,
+      "medianMs": 0.23899431818181877,
+      "meanMs": 0.23980260101010106,
+      "maxMs": 0.28366286363636367,
+      "normalizedMsPerNLog2N": 0.0003597222928299453,
+      "normalizedUsPerNLog2N": 0.3597222928299453,
+      "expectedGrowthFromPrevious": null,
+      "observedGrowthFromPrevious": null,
+      "validation": {
+        "checked": true,
+        "ok": true,
+        "message": "Validated against brute-force nearest neighbors."
+      }
+    },
+    {
+      "family": "random",
+      "size": 250,
+      "batchIterations": 36,
+      "edgeCount": 732,
+      "nearestLinkCount": 250,
+      "samplesMs": [
+        0.6810069444444449,
+        0.7158263888888885,
+        0.7243124999999995,
+        0.6815011666666666,
+        0.6693923611111122,
+        0.6740266111111121,
+        0.6725856666666677,
+        0.6641354166666673,
+        0.663833333333334
+      ],
+      "minMs": 0.663833333333334,
+      "medianMs": 0.6740266111111121,
+      "meanMs": 0.6829578209876547,
+      "maxMs": 0.7243124999999995,
+      "normalizedMsPerNLog2N": 0.00033846089074188613,
+      "normalizedUsPerNLog2N": 0.3384608907418861,
+      "expectedGrowthFromPrevious": 2.9974250108400473,
+      "observedGrowthFromPrevious": 2.820262072499713,
+      "validation": {
+        "checked": false,
+        "ok": true,
+        "message": "Skipped brute-force validation for N > 100."
+      }
+    },
+    {
+      "family": "random",
+      "size": 500,
+      "batchIterations": 18,
+      "edgeCount": 1478,
+      "nearestLinkCount": 500,
+      "samplesMs": [
+        1.529111111111111,
+        1.5274398333333308,
+        1.5144513888888897,
+        1.4986897777777761,
+        1.553805555555559,
+        1.598122666666667,
+        1.5557754444444452,
+        1.498546333333334,
+        1.5089073888888909
+      ],
+      "minMs": 1.498546333333334,
+      "medianMs": 1.5274398333333308,
+      "meanMs": 1.531649944444445,
+      "maxMs": 1.598122666666667,
+      "normalizedMsPerNLog2N": 0.0003407264294650378,
+      "normalizedUsPerNLog2N": 0.34072642946503784,
+      "expectedGrowthFromPrevious": 2.2510738338534915,
+      "observedGrowthFromPrevious": 2.266141734100666,
+      "validation": {
+        "checked": false,
+        "ok": true,
+        "message": "Skipped brute-force validation for N > 100."
+      }
+    },
+    {
+      "family": "random",
+      "size": 1000,
+      "batchIterations": 8,
+      "edgeCount": 2977,
+      "nearestLinkCount": 1000,
+      "samplesMs": [
+        3.3174999999999955,
+        3.3136302500000028,
+        3.3517656249999987,
+        3.4406458750000013,
+        3.3418593749999985,
+        3.3438906250000002,
+        3.312588500000004,
+        3.5364738749999987,
+        3.526166625000002
+      ],
+      "minMs": 3.312588500000004,
+      "medianMs": 3.3438906250000002,
+      "meanMs": 3.3871689722222222,
+      "maxMs": 3.5364738749999987,
+      "normalizedMsPerNLog2N": 0.00033553712678152577,
+      "normalizedUsPerNLog2N": 0.33553712678152575,
+      "expectedGrowthFromPrevious": 2.2230702787955128,
+      "observedGrowthFromPrevious": 2.1892126629319533,
+      "validation": {
+        "checked": false,
+        "ok": true,
+        "message": "Skipped brute-force validation for N > 100."
+      }
+    },
+    {
+      "family": "random",
+      "size": 2000,
+      "batchIterations": 4,
+      "edgeCount": 5970,
+      "nearestLinkCount": 2000,
+      "samplesMs": [
+        7.156812500000001,
+        7.322041500000012,
+        7.567645749999997,
+        7.133916749999969,
+        7.326312499999972,
+        7.182770749999975,
+        7.363031250000006,
+        7.061427250000008,
+        7.366635499999973
+      ],
+      "minMs": 7.061427250000008,
+      "medianMs": 7.322041500000012,
+      "meanMs": 7.275621527777768,
+      "maxMs": 7.567645749999997,
+      "normalizedMsPerNLog2N": 0.00033385854171148516,
+      "normalizedUsPerNLog2N": 0.33385854171148516,
+      "expectedGrowthFromPrevious": 2.2006866637759877,
+      "observedGrowthFromPrevious": 2.1896773313271907,
+      "validation": {
+        "checked": false,
+        "ok": true,
+        "message": "Skipped brute-force validation for N > 100."
+      }
+    },
+    {
+      "family": "random",
+      "size": 5000,
+      "batchIterations": 2,
+      "edgeCount": 14973,
+      "nearestLinkCount": 5000,
+      "samplesMs": [
+        20.23714599999994,
+        21.950291499999935,
+        22.16527050000002,
+        22.47577100000001,
+        25.09806249999997,
+        23.282729000000018,
+        23.697041499999955,
+        24.62987499999997,
+        23.716166499999986
+      ],
+      "minMs": 20.23714599999994,
+      "medianMs": 23.282729000000018,
+      "meanMs": 23.028039277777754,
+      "maxMs": 25.09806249999997,
+      "normalizedMsPerNLog2N": 0.0003789595374766368,
+      "normalizedUsPerNLog2N": 0.3789595374766368,
+      "expectedGrowthFromPrevious": 2.8013756382059123,
+      "observedGrowthFromPrevious": 3.1798138538275125,
+      "validation": {
+        "checked": false,
+        "ok": true,
+        "message": "Skipped brute-force validation for N > 100."
+      }
+    },
+    {
+      "family": "random",
+      "size": 10000,
+      "batchIterations": 1,
+      "edgeCount": 29974,
+      "nearestLinkCount": 10000,
+      "samplesMs": [
+        53.747957999999926,
+        47.15025000000014,
+        52.187749999999596,
+        54.03220800000008,
+        51.984457999999904,
+        52.013124999999945,
+        56.686916999999994,
+        54.95958300000029,
+        53.924833000000035
+      ],
+      "minMs": 47.15025000000014,
+      "medianMs": 53.747957999999926,
+      "meanMs": 52.96523133333332,
+      "maxMs": 56.686916999999994,
+      "normalizedMsPerNLog2N": 0.00040449368909219554,
+      "normalizedUsPerNLog2N": 0.4044936890921955,
+      "expectedGrowthFromPrevious": 2.162764226425793,
+      "observedGrowthFromPrevious": 2.308490469480613,
+      "validation": {
+        "checked": false,
+        "ok": true,
+        "message": "Skipped brute-force validation for N > 100."
+      }
+    },
+    {
+      "family": "structured",
+      "size": 100,
+      "batchIterations": 84,
+      "edgeCount": 286,
+      "nearestLinkCount": 100,
+      "samplesMs": [
+        0.2368988095238094,
+        0.20656201190476103,
+        0.2079027857142819,
+        0.20352330952380812,
+        0.21003026190476248,
+        0.20271230952380934,
+        0.20618948809524118,
+        0.20145089285714285,
+        0.20350694047619117
+      ],
+      "minMs": 0.20145089285714285,
+      "medianMs": 0.20618948809524118,
+      "meanMs": 0.2087529788359786,
+      "maxMs": 0.2368988095238094,
+      "normalizedMsPerNLog2N": 0.0003103461035363448,
+      "normalizedUsPerNLog2N": 0.3103461035363448,
+      "expectedGrowthFromPrevious": null,
+      "observedGrowthFromPrevious": null,
+      "validation": {
+        "checked": true,
+        "ok": true,
+        "message": "Validated against brute-force nearest neighbors."
+      }
+    },
+    {
+      "family": "structured",
+      "size": 250,
+      "batchIterations": 36,
+      "edgeCount": 730,
+      "nearestLinkCount": 250,
+      "samplesMs": [
+        0.6442951388888913,
+        0.6532650277777824,
+        0.6398495277777809,
+        0.6509328888888982,
+        0.6423124999999901,
+        0.6553911944444432,
+        0.6393460833333316,
+        0.6486099722222131,
+        0.634070611111118
+      ],
+      "minMs": 0.634070611111118,
+      "medianMs": 0.6442951388888913,
+      "meanMs": 0.6453414382716054,
+      "maxMs": 0.6553911944444432,
+      "normalizedMsPerNLog2N": 0.0003235313013080031,
+      "normalizedUsPerNLog2N": 0.32353130130800306,
+      "expectedGrowthFromPrevious": 2.9974250108400473,
+      "observedGrowthFromPrevious": 3.1247719990035785,
+      "validation": {
+        "checked": false,
+        "ok": true,
+        "message": "Skipped brute-force validation for N > 100."
+      }
+    },
+    {
+      "family": "structured",
+      "size": 500,
+      "batchIterations": 16,
+      "edgeCount": 1480,
+      "nearestLinkCount": 500,
+      "samplesMs": [
+        1.4677916249999896,
+        1.420151062499997,
+        1.4299661249999929,
+        1.4147317500000156,
+        1.452955750000001,
+        1.4132135625000046,
+        1.4261068124999952,
+        1.4315390625000077,
+        1.450510437499986
+      ],
+      "minMs": 1.4132135625000046,
+      "medianMs": 1.4299661249999929,
+      "meanMs": 1.4341073541666656,
+      "maxMs": 1.4677916249999896,
+      "normalizedMsPerNLog2N": 0.00031898294217188764,
+      "normalizedUsPerNLog2N": 0.31898294217188766,
+      "expectedGrowthFromPrevious": 2.2510738338534915,
+      "observedGrowthFromPrevious": 2.2194271517646675,
+      "validation": {
+        "checked": false,
+        "ok": true,
+        "message": "Skipped brute-force validation for N > 100."
+      }
+    },
+    {
+      "family": "structured",
+      "size": 1000,
+      "batchIterations": 8,
+      "edgeCount": 2976,
+      "nearestLinkCount": 1000,
+      "samplesMs": [
+        3.122708375000002,
+        3.1487343750000036,
+        3.2061718749999955,
+        3.0935521250000306,
+        3.190031250000004,
+        3.1183333749999633,
+        3.2230312499999627,
+        3.093974000000003,
+        3.194239625000023
+      ],
+      "minMs": 3.0935521250000306,
+      "medianMs": 3.1487343750000036,
+      "meanMs": 3.154530694444443,
+      "maxMs": 3.2230312499999627,
+      "normalizedMsPerNLog2N": 0.00031595449841775983,
+      "normalizedUsPerNLog2N": 0.31595449841775985,
+      "expectedGrowthFromPrevious": 2.2230702787955128,
+      "observedGrowthFromPrevious": 2.201964312266502,
+      "validation": {
+        "checked": false,
+        "ok": true,
+        "message": "Skipped brute-force validation for N > 100."
+      }
+    },
+    {
+      "family": "structured",
+      "size": 2000,
+      "batchIterations": 4,
+      "edgeCount": 5972,
+      "nearestLinkCount": 2000,
+      "samplesMs": [
+        6.917697750000002,
+        6.738239500000077,
+        6.904666750000047,
+        6.718645750000064,
+        7.591906250000079,
+        7.056176999999934,
+        6.6645937499999945,
+        7.370197999999959,
+        6.6287395000000515
+      ],
+      "minMs": 6.6287395000000515,
+      "medianMs": 6.904666750000047,
+      "meanMs": 6.954540472222245,
+      "maxMs": 7.591906250000079,
+      "normalizedMsPerNLog2N": 0.00031482776656739674,
+      "normalizedUsPerNLog2N": 0.31482776656739675,
+      "expectedGrowthFromPrevious": 2.2006866637759877,
+      "observedGrowthFromPrevious": 2.1928387496960706,
+      "validation": {
+        "checked": false,
+        "ok": true,
+        "message": "Skipped brute-force validation for N > 100."
+      }
+    },
+    {
+      "family": "structured",
+      "size": 5000,
+      "batchIterations": 2,
+      "edgeCount": 14960,
+      "nearestLinkCount": 5000,
+      "samplesMs": [
+        20.118187500000204,
+        18.19300000000021,
+        19.982374999999593,
+        19.62649999999985,
+        19.897062500000175,
+        19.812541499999952,
+        17.887500000000273,
+        23.21370849999994,
+        19.910562500000196
+      ],
+      "minMs": 17.887500000000273,
+      "medianMs": 19.897062500000175,
+      "meanMs": 19.849048611111154,
+      "maxMs": 23.21370849999994,
+      "normalizedMsPerNLog2N": 0.0003238529985958174,
+      "normalizedUsPerNLog2N": 0.3238529985958174,
+      "expectedGrowthFromPrevious": 2.8013756382059123,
+      "observedGrowthFromPrevious": 2.8816832470589606,
+      "validation": {
+        "checked": false,
+        "ok": true,
+        "message": "Skipped brute-force validation for N > 100."
+      }
+    },
+    {
+      "family": "structured",
+      "size": 10000,
+      "batchIterations": 1,
+      "edgeCount": 29940,
+      "nearestLinkCount": 10000,
+      "samplesMs": [
+        46.10033299999941,
+        45.814916999999696,
+        51.51108299999942,
+        48.611667000000125,
+        47.969584000000395,
+        46.39562500000011,
+        46.35350000000017,
+        45.76329100000021,
+        45.83954199999971
+      ],
+      "minMs": 45.76329100000021,
+      "medianMs": 46.35350000000017,
+      "meanMs": 47.151060222222135,
+      "maxMs": 51.51108299999942,
+      "normalizedMsPerNLog2N": 0.00034884484760026006,
+      "normalizedUsPerNLog2N": 0.3488448476002601,
+      "expectedGrowthFromPrevious": 2.162764226425793,
+      "observedGrowthFromPrevious": 2.3296654971054025,
+      "validation": {
+        "checked": false,
+        "ok": true,
+        "message": "Skipped brute-force validation for N > 100."
+      }
+    }
+  ],
+  "summaryByFamily": {
+    "random": {
+      "consistentWithONLogN": true,
+      "normalizedRangeFactor": 1.2115720838490693,
+      "maxGrowthDeviation": 0.13509013588194252,
+      "conclusion": "For N >= 500, the normalized metric stayed within a 1.21x band and adjacent-size growth stayed close to the N log2 N baseline."
+    },
+    "structured": {
+      "consistentWithONLogN": true,
+      "normalizedRangeFactor": 1.1080498121361895,
+      "maxGrowthDeviation": 0.07717034924118038,
+      "conclusion": "For N >= 500, the normalized metric stayed within a 1.11x band and adjacent-size growth stayed close to the N log2 N baseline."
+    }
+  }
+}
