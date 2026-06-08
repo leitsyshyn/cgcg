@@ -61,28 +61,39 @@ interface BenchmarkOutput {
   readonly summaryByFamily: Readonly<Record<string, BenchmarkSummary>>;
 }
 
-const SIZES = [100, 250, 500, 1_000, 2_000, 5_000, 10_000] as const;
-const SAMPLE_RUNS = 9;
-const WARMUP_RUNS = 2;
-const TARGET_SAMPLE_MS = 25;
-const MAX_BATCH_ITERATIONS = 128;
+interface BenchmarkConfig {
+  readonly sizes: readonly number[];
+  readonly warmupRuns: number;
+  readonly sampleRuns: number;
+  readonly targetSampleMs: number;
+  readonly maxBatchIterations: number;
+  readonly outputBasename: string;
+}
+
+const DEFAULT_SIZES = [100, 250, 500, 1_000, 2_000, 5_000, 10_000] as const;
+const DEFAULT_SAMPLE_RUNS = 9;
+const DEFAULT_WARMUP_RUNS = 2;
+const DEFAULT_TARGET_SAMPLE_MS = 25;
+const DEFAULT_MAX_BATCH_ITERATIONS = 128;
+const DEFAULT_OUTPUT_BASENAME = 'core-benchmark';
 const RESULTS_DIR = path.resolve(process.cwd(), 'benchmarks/results');
 
 async function main(): Promise<void> {
+  const config = readConfig(process.argv.slice(2));
   const measurements: BenchmarkMeasurement[] = [];
 
   for (const family of datasetFamilies) {
     let previous: BenchmarkMeasurement | undefined;
-    for (const size of SIZES) {
+    for (const size of config.sizes) {
       const points = family.generate(size);
       const validation = validateDataset(points);
-      const warmupBatch = calibrateBatchSize(points);
+      const warmupBatch = calibrateBatchSize(points, config);
 
-      for (let run = 0; run < WARMUP_RUNS; run += 1) {
+      for (let run = 0; run < config.warmupRuns; run += 1) {
         executeBatch(points, warmupBatch);
       }
 
-      const samplesMs = Array.from({ length: SAMPLE_RUNS }, () => measureBatch(points, warmupBatch));
+      const samplesMs = Array.from({ length: config.sampleRuns }, () => measureBatch(points, warmupBatch));
       const result = executeBatch(points, 1);
       const nLog2N = size * Math.log2(size);
       const medianMs = median(samplesMs);
@@ -141,11 +152,11 @@ async function main(): Promise<void> {
     ],
     traceLevel: 'off',
     config: {
-      sizes: SIZES,
-      warmupRuns: WARMUP_RUNS,
-      sampleRuns: SAMPLE_RUNS,
-      targetSampleMs: TARGET_SAMPLE_MS,
-      maxBatchIterations: MAX_BATCH_ITERATIONS,
+      sizes: config.sizes,
+      warmupRuns: config.warmupRuns,
+      sampleRuns: config.sampleRuns,
+      targetSampleMs: config.targetSampleMs,
+      maxBatchIterations: config.maxBatchIterations,
     },
     datasetFamilies: datasetFamilies.map(({ name, description, seed }) => ({ name, description, seed })),
     results: measurements,
@@ -158,12 +169,64 @@ async function main(): Promise<void> {
 
   await mkdir(RESULTS_DIR, { recursive: true });
   await Promise.all([
-    writeFile(path.join(RESULTS_DIR, 'core-benchmark.json'), json, 'utf8'),
-    writeFile(path.join(RESULTS_DIR, 'core-benchmark.csv'), csv, 'utf8'),
-    writeFile(path.join(RESULTS_DIR, 'core-benchmark.md'), markdown, 'utf8'),
+    writeFile(path.join(RESULTS_DIR, `${config.outputBasename}.json`), json, 'utf8'),
+    writeFile(path.join(RESULTS_DIR, `${config.outputBasename}.csv`), csv, 'utf8'),
+    writeFile(path.join(RESULTS_DIR, `${config.outputBasename}.md`), markdown, 'utf8'),
   ]);
 
   process.stdout.write(markdown);
+}
+
+function readConfig(args: readonly string[]): BenchmarkConfig {
+  const options = new Map(
+    args.map((arg) => {
+      const [key, ...rest] = arg.split('=');
+      return [key, rest.join('=')];
+    }),
+  );
+
+  return {
+    sizes: readSizes(options.get('--sizes')),
+    warmupRuns: readIntegerOption(options.get('--warmup-runs'), DEFAULT_WARMUP_RUNS, '--warmup-runs'),
+    sampleRuns: readIntegerOption(options.get('--sample-runs'), DEFAULT_SAMPLE_RUNS, '--sample-runs'),
+    targetSampleMs: readIntegerOption(options.get('--target-sample-ms'), DEFAULT_TARGET_SAMPLE_MS, '--target-sample-ms'),
+    maxBatchIterations: readIntegerOption(
+      options.get('--max-batch-iterations'),
+      DEFAULT_MAX_BATCH_ITERATIONS,
+      '--max-batch-iterations',
+    ),
+    outputBasename: options.get('--output-basename') || DEFAULT_OUTPUT_BASENAME,
+  };
+}
+
+function readSizes(value: string | undefined): readonly number[] {
+  if (!value) {
+    return DEFAULT_SIZES;
+  }
+
+  const sizes = value
+    .split(',')
+    .map((part) => Number.parseInt(part.trim(), 10))
+    .filter((size) => Number.isFinite(size) && size >= 2);
+
+  if (sizes.length === 0) {
+    throw new Error('Expected --sizes to contain at least one integer >= 2.');
+  }
+
+  return [...new Set(sizes)].sort((a, b) => a - b);
+}
+
+function readIntegerOption(value: string | undefined, fallback: number, flag: string): number {
+  if (!value) {
+    return fallback;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    throw new Error(`Expected ${flag} to be a positive integer.`);
+  }
+
+  return parsed;
 }
 
 function validateDataset(points: readonly Point[]): BenchmarkMeasurement['validation'] {
@@ -176,17 +239,17 @@ function validateDataset(points: readonly Point[]): BenchmarkMeasurement['valida
   };
 }
 
-function calibrateBatchSize(points: readonly Point[]): number {
+function calibrateBatchSize(points: readonly Point[], config: BenchmarkConfig): number {
   const startedAt = performance.now();
   executeBatch(points, 1);
   const elapsedMs = performance.now() - startedAt;
 
   if (!Number.isFinite(elapsedMs) || elapsedMs <= 0) {
-    return MAX_BATCH_ITERATIONS;
+    return config.maxBatchIterations;
   }
 
-  const target = Math.ceil(TARGET_SAMPLE_MS / elapsedMs);
-  return Math.max(1, Math.min(MAX_BATCH_ITERATIONS, target));
+  const target = Math.ceil(config.targetSampleMs / elapsedMs);
+  return Math.max(1, Math.min(config.maxBatchIterations, target));
 }
 
 function measureBatch(points: readonly Point[], batchIterations: number): number {

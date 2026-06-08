@@ -1,0 +1,104 @@
+{
+  "generatedAt": "2026-06-08T16:13:35.431Z",
+  "nodeVersion": "v24.13.1",
+  "platform": "darwin",
+  "architecture": "arm64",
+  "workingDirectory": "/Users/tymofii.leitsyshyn/Personal/cgcg",
+  "timedScope": "runGeometryCore(points) = delaunayTriangulation + adjacencyGraph + nearestNeighbors",
+  "excludedFromTiming": [
+    "dataset generation",
+    "trace recording and projection",
+    "React and D3 rendering",
+    "app result mapping",
+    "brute-force validation",
+    "file output"
+  ],
+  "traceLevel": "off",
+  "config": {
+    "sizes": [
+      100000
+    ],
+    "warmupRuns": 1,
+    "sampleRuns": 3,
+    "targetSampleMs": 1,
+    "maxBatchIterations": 1
+  },
+  "datasetFamilies": [
+    {
+      "name": "random",
+      "description": "Seeded duplicate-free integer points spread across a large square.",
+      "seed": 1592639710
+    },
+    {
+      "name": "structured",
+      "description": "Deterministic staggered lattice with a seam offset to stress recursive merges.",
+      "seed": 85903341
+    }
+  ],
+  "results": [
+    {
+      "family": "random",
+      "size": 100000,
+      "batchIterations": 1,
+      "edgeCount": 299965,
+      "nearestLinkCount": 100000,
+      "samplesMs": [
+        862.7228749999999,
+        723.708709,
+        743.8365000000003
+      ],
+      "minMs": 723.708709,
+      "medianMs": 743.8365000000003,
+      "meanMs": 776.7560280000001,
+      "maxMs": 862.7228749999999,
+      "normalizedMsPerNLog2N": 0.0004478341967394221,
+      "normalizedUsPerNLog2N": 0.4478341967394221,
+      "expectedGrowthFromPrevious": null,
+      "observedGrowthFromPrevious": null,
+      "validation": {
+        "checked": false,
+        "ok": true,
+        "message": "Skipped brute-force validation for N > 100."
+      }
+    },
+    {
+      "family": "structured",
+      "size": 100000,
+      "batchIterations": 1,
+      "edgeCount": 299857,
+      "nearestLinkCount": 100000,
+      "samplesMs": [
+        536.3875420000004,
+        558.8166669999991,
+        538.5925000000007
+      ],
+      "minMs": 536.3875420000004,
+      "medianMs": 538.5925000000007,
+      "meanMs": 544.5989030000001,
+      "maxMs": 558.8166669999991,
+      "normalizedMsPerNLog2N": 0.000324264995879306,
+      "normalizedUsPerNLog2N": 0.324264995879306,
+      "expectedGrowthFromPrevious": null,
+      "observedGrowthFromPrevious": null,
+      "validation": {
+        "checked": false,
+        "ok": true,
+        "message": "Skipped brute-force validation for N > 100."
+      }
+    }
+  ],
+  "summaryByFamily": {
+    "random": {
+      "consistentWithONLogN": true,
+      "normalizedRangeFactor": 1,
+      "maxGrowthDeviation": 0,
+      "conclusion": "For N >= 500, the normalized metric stayed within a 1.00x band and adjacent-size growth stayed close to the N log2 N baseline."
+    },
+    "structured": {
+      "consistentWithONLogN": true,
+      "normalizedRangeFactor": 1,
+      "maxGrowthDeviation": 0,
+      "conclusion": "For N >= 500, the normalized metric stayed within a 1.00x band and adjacent-size growth stayed close to the N log2 N baseline."
+    }
+  }
+}

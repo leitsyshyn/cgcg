@@ -49,6 +49,13 @@ export function validateNearestNeighbors(
         message: `Validation failed for point ${expectedResult.point}: expected ${expectedResult.neighbors.join(', ')}, got ${actual.neighbors.join(', ')}.`,
       };
     }
+    if (!sameDistance(actual.distanceSquared, expectedResult.distanceSquared)) {
+      return {
+        checked: true,
+        ok: false,
+        message: `Validation failed for point ${expectedResult.point}: expected distance^2 ${expectedResult.distanceSquared}, got ${actual.distanceSquared}.`,
+      };
+    }
   }
 
   return { checked: true, ok: true, message: 'Validated against brute-force nearest neighbors.' };

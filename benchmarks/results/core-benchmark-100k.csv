@@ -1,0 +1,3 @@
+family,size,batchIterations,edgeCount,nearestLinkCount,minMs,medianMs,meanMs,maxMs,normalizedMsPerNLog2N,normalizedUsPerNLog2N,expectedGrowthFromPrevious,observedGrowthFromPrevious,validationChecked,validationOk,validationMessage,samplesMs
+random,100000,1,299965,100000,723.708709,743.836500,776.756028,862.722875,0.000447834197,0.447834197,,,false,true,"Skipped brute-force validation for N > 100.","862.722875|723.708709|743.836500"
+structured,100000,1,299857,100000,536.387542,538.592500,544.598903,558.816667,0.000324264996,0.324264996,,,false,true,"Skipped brute-force validation for N > 100.","536.387542|558.816667|538.592500"

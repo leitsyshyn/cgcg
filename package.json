@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "benchmark": "tsx benchmarks/run.ts",
+    "benchmark:large": "tsx benchmarks/run.ts --sizes=100000,1000000 --warmup-runs=1 --sample-runs=3 --target-sample-ms=1 --max-batch-iterations=1 --output-basename=core-benchmark-large",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest"

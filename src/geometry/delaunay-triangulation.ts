@@ -1,5 +1,10 @@
 import type { Point, Triangulation } from "./types";
-import { circumcircle, insideCircumcircle, orientationSign } from "./predicates";
+import {
+  collinear,
+  circumcircle,
+  insideCircumcircle,
+  orientationSign,
+} from "./predicates";
 import { QuadEdgeSubdivision, type DirectedEdge, type TopologyEdge } from "./quad-edge";
 import type { GeometryTrace } from "./trace";
 import { sortedOrder } from "./order";
@@ -26,6 +31,28 @@ export function delaunayTriangulation(points: readonly Point[], trace?: Geometry
     if (!value) throw new Error(`Point ${index} does not exist.`);
     return { x: value.x, y: value.y, index };
   });
+
+  for (let index = 1; index < sortedPoints.length; index += 1) {
+    const previous = sortedPoints[index - 1];
+    const current = sortedPoints[index];
+    if (!previous || !current) throw new Error("Invalid sorted point order.");
+    if (previous.x === current.x && previous.y === current.y) {
+      throw new Error(
+        `Duplicate points are unsupported: point ${current.index} duplicates point ${previous.index} at (${current.x}, ${current.y}).`,
+      );
+    }
+  }
+
+  if (sortedPoints.length > 2 && collinear(sortedPoints)) {
+    return {
+      points,
+      edges: sortedPoints.slice(1).map((item, index) => ({
+        a: sortedPoints[index]?.index ?? item.index,
+        b: item.index,
+      })),
+    };
+  }
+
   const subdivision = new QuadEdgeSubdivision(trace);
   divide(sortedPoints, 0, sortedPoints.length, subdivision, points, trace, 0);
 
