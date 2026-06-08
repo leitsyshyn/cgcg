@@ -1,7 +1,7 @@
 import type { Point } from '../src/geometry/types';
 
 export interface DatasetFamily {
-  readonly name: 'random' | 'structured';
+  readonly name: 'random' | 'structured' | 'circle-high-degree';
   readonly description: string;
   readonly seed: number;
   readonly generate: (count: number) => readonly Point[];
@@ -9,6 +9,8 @@ export interface DatasetFamily {
 
 const RANDOM_EXTENT = 1_000_000;
 const STRUCTURED_SPACING = 72;
+const CIRCLE_BASE_RADIUS = 1_000_000;
+const CIRCLE_PERTURBATION = 750;
 
 export const datasetFamilies: readonly DatasetFamily[] = [
   {
@@ -22,6 +24,12 @@ export const datasetFamilies: readonly DatasetFamily[] = [
     description: 'Deterministic staggered stress lattice with a seam offset, used as the worst-case-style large-input efficiency demo.',
     seed: 0x51ec7ed,
     generate: generateStructuredStressPoints,
+  },
+  {
+    name: 'circle-high-degree',
+    description: 'One center point plus a slightly perturbed outer ring, stressing a high-degree Delaunay neighborhood without exact cocircular degeneracy.',
+    seed: 0xc1c1e,
+    generate: generateCircleHighDegreePoints,
   },
 ] as const;
 
@@ -62,6 +70,30 @@ function generateStructuredStressPoints(count: number): readonly Point[] {
       y: Math.round(yOffset - row * STRUCTURED_SPACING + waveY * 4),
     };
   });
+}
+
+function generateCircleHighDegreePoints(count: number): readonly Point[] {
+  if (count <= 0) {
+    return [];
+  }
+
+  if (count === 1) {
+    return [{ x: 0, y: 0 }];
+  }
+
+  const outerCount = count - 1;
+  const points: Point[] = [{ x: 0, y: 0 }];
+
+  for (let index = 0; index < outerCount; index += 1) {
+    const angle = (2 * Math.PI * index) / outerCount;
+    const radius = CIRCLE_BASE_RADIUS + CIRCLE_PERTURBATION * Math.sin(7 * angle);
+    points.push({
+      x: radius * Math.cos(angle),
+      y: radius * Math.sin(angle),
+    });
+  }
+
+  return points;
 }
 
 function mulberry32(seed: number): () => number {
