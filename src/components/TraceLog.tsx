@@ -3,7 +3,7 @@ import type { AppPoint } from '../app/types';
 import type { TraceEvent } from '../trace/events';
 import { createPointLookup, describeTraceEvent } from '../trace/describe';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import type { VisualizationMode } from '../app/visualization';
@@ -36,8 +36,11 @@ export function TraceLog({
   const pointLookup = useMemo(() => createPointLookup(points), [points]);
 
   return (
-    <Card size="sm" className="min-h-0 py-0">
-      <CardContent className="grid h-full min-h-0 grid-rows-[auto_1fr] py-3">
+    <Card size="sm" className="h-full min-h-0 py-0">
+      <CardHeader className="border-b pb-3">
+        <CardTitle>Trace Log</CardTitle>
+      </CardHeader>
+      <CardContent className="flex min-h-0 flex-1 flex-col gap-3 py-3">
         <div className="grid gap-2">
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="outline">{pointCount} point(s)</Badge>
@@ -47,10 +50,11 @@ export function TraceLog({
             <Badge variant="outline">runtime {runtimeMs === null ? 'not run' : `${runtimeMs.toFixed(2)} ms`}</Badge>
           </div>
           <p className="truncate text-xs text-muted-foreground">{explanation}</p>
-          <Separator />
         </div>
 
-        <ScrollArea className="h-full min-h-0">
+        <Separator />
+
+        <ScrollArea className="min-h-0 flex-1">
           {events.length === 0 ? (
             <div className="flex min-h-full items-center justify-center px-4 text-sm text-muted-foreground">
               {traceSkipped ? 'Trace skipped for very large inputs.' : 'Run the algorithm to populate the trace.'}

@@ -1,5 +1,5 @@
 import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Cpu, Eraser, GitMerge, Pause, Play, Sparkles, Target, Upload, Waypoints } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Cpu, Eraser, GitMerge, LoaderCircle, Pause, Play, RotateCcw, ScanSearch, Sparkles, Target, Upload, Waypoints } from 'lucide-react';
 import { GeometryCanvas, type GeometryCanvasHandle } from './components/GeometryCanvas';
 import { ResultPanel } from './components/ResultPanel';
 import { TraceLog } from './components/TraceLog';
@@ -21,7 +21,7 @@ import {
   type VisualizationToggles,
 } from './app/visualization';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Field, FieldGroup, FieldLabel, FieldLegend, FieldSet } from '@/components/ui/field';
 import { Slider } from '@/components/ui/slider';
@@ -54,7 +54,7 @@ function idleFrame(points: readonly AppPoint[]): TraceFrame {
     nearestArrows: [],
     activeDistance: null,
     currentPhase: 'idle',
-    explanation: 'Pan the plane, then use Add Points mode or Shift+click to place points.',
+    explanation: 'Use Manual mode to place points. Drag to pan, and use the wheel or trackpad pinch to zoom.',
   };
 }
 
@@ -67,8 +67,8 @@ export default function App() {
   const [toggles, setToggles] = useState<VisualizationToggles>(defaultToggles);
   const [pointLabelOptions, setPointLabelOptions] = useState<PointLabelOptions>(defaultPointLabelOptions);
   const [edgeLabelOptions, setEdgeLabelOptions] = useState<EdgeLabelOptions>(defaultEdgeLabelOptions);
-  const [canvasInputMode, setCanvasInputMode] = useState<CanvasInputMode>('pan');
-  const [pointCount, setPointCount] = useState(DEFAULT_POINT_COUNT);
+  const [canvasInputMode, setCanvasInputMode] = useState<CanvasInputMode>('add');
+  const [pointCountInput, setPointCountInput] = useState(String(DEFAULT_POINT_COUNT));
   const [generationAreaMode, setGenerationAreaMode] = useState<GenerationAreaMode>('spread');
   const [generationExtent, setGenerationExtent] = useState(DEFAULT_GENERATION_EXTENT);
   const [result, setResult] = useState<AlgorithmResult | null>(null);
@@ -77,6 +77,7 @@ export default function App() {
   const [step, setStep] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [speedMs, setSpeedMs] = useState(450);
+  const [running, setRunning] = useState(false);
 
   const effectiveMode: VisualizationMode = points.length > 100 && mode === 'step' ? 'result' : mode;
   const traceLevel: TraceLevel = effectiveMode === 'step' ? 'detailed' : 'phase';
@@ -165,17 +166,17 @@ export default function App() {
   }, []);
 
   function generateRandom(): void {
-    const count = clampPointCount(pointCount);
+    const count = clampPointCount(Number(pointCountInput));
     const bounds = generationBounds(generationAreaMode, clampGenerationExtent(generationExtent), canvasRef.current);
-    setPointCount(count);
+    setPointCountInput(String(count));
     setGenerationExtent((current) => clampGenerationExtent(current));
     replacePoints(generateRandomPoints(count, bounds));
   }
 
   function generateStructured(): void {
-    const count = clampPointCount(pointCount);
+    const count = clampPointCount(Number(pointCountInput));
     const bounds = generationBounds(generationAreaMode, clampGenerationExtent(generationExtent), canvasRef.current);
-    setPointCount(count);
+    setPointCountInput(String(count));
     setGenerationExtent((current) => clampGenerationExtent(current));
     replacePoints(generateStructuredPoints(count, bounds));
   }
@@ -209,7 +210,7 @@ export default function App() {
     }
   }
 
-  function run(): void {
+  function executeRun(): void {
     setPlaying(false);
 
     const nextMode: VisualizationMode = points.length > 100 ? 'result' : effectiveMode;
@@ -235,6 +236,19 @@ export default function App() {
     setResult(computed.value);
     setResultTraceLevel(runTraceLevel);
     setStep(nextMode === 'result' ? Math.max(0, projectedEvents.length - 1) : 0);
+  }
+
+  function run(): void {
+    if (points.length < 2 || running) return;
+
+    setRunning(true);
+    window.setTimeout(() => {
+      try {
+        executeRun();
+      } finally {
+        setRunning(false);
+      }
+    }, 0);
   }
 
   function updateLayer(key: keyof VisualizationToggles, checked: boolean): void {
@@ -271,9 +285,92 @@ export default function App() {
         }}
       />
 
-      <div className="grid h-full grid-cols-1 gap-3 p-3 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <section className="grid min-h-0 gap-3 xl:grid-rows-[minmax(0,1fr)_220px]">
-          <Card className="min-h-0 py-0">
+      <div className="grid h-full grid-cols-1 gap-3 p-3 xl:grid-cols-[300px_minmax(0,1fr)_360px] xl:grid-rows-[minmax(0,1fr)_232px]">
+        <aside className="order-2 grid min-h-0 gap-3 xl:order-1 xl:row-span-2 xl:grid-rows-[auto_minmax(0,1fr)]">
+          <Card className="py-0">
+            <CardContent className="p-3">
+              <div className="flex flex-col gap-3">
+                <FieldSet>
+                  <FieldLegend variant="label">View</FieldLegend>
+                  <FieldGroup className="gap-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button type="button" variant="outline" size="sm" className="h-9" onClick={() => canvasRef.current?.fitToPoints()} disabled={points.length === 0}>
+                        <ScanSearch data-icon="inline-start" />
+                        Fit View
+                      </Button>
+                      <Button type="button" variant="outline" size="sm" className="h-9" onClick={() => canvasRef.current?.resetView()}>
+                        <RotateCcw data-icon="inline-start" />
+                        Reset View
+                      </Button>
+                    </div>
+                  </FieldGroup>
+                </FieldSet>
+
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-2">
+                  <FieldSet>
+                    <FieldLegend variant="label">Point labels</FieldLegend>
+                    <FieldGroup className="gap-2">
+                      <Field orientation="horizontal">
+                        <Checkbox id="input-labels" checked={pointLabelOptions.inputLabels} onCheckedChange={(checked) => updatePointLabels('inputLabels', checked === true)} />
+                        <FieldLabel htmlFor="input-labels">Input</FieldLabel>
+                      </Field>
+                      <Field orientation="horizontal">
+                        <Checkbox id="sorted-labels" checked={pointLabelOptions.sortedLabels} onCheckedChange={(checked) => updatePointLabels('sortedLabels', checked === true)} />
+                        <FieldLabel htmlFor="sorted-labels">Sorted</FieldLabel>
+                      </Field>
+                      <Field orientation="horizontal">
+                        <Checkbox id="coordinate-labels" checked={pointLabelOptions.coordinates} onCheckedChange={(checked) => updatePointLabels('coordinates', checked === true)} />
+                        <FieldLabel htmlFor="coordinate-labels">(x; y)</FieldLabel>
+                      </Field>
+                    </FieldGroup>
+                  </FieldSet>
+
+                  <FieldSet>
+                    <FieldLegend variant="label">Edge labels</FieldLegend>
+                    <FieldGroup className="gap-2">
+                      <Field orientation="horizontal">
+                        <Checkbox id="edge-pair-labels" checked={edgeLabelOptions.pairLabels} onCheckedChange={(checked) => updateEdgeLabels('pairLabels', checked === true)} />
+                        <FieldLabel htmlFor="edge-pair-labels">P1-P2</FieldLabel>
+                      </Field>
+                      <Field orientation="horizontal">
+                        <Checkbox id="edge-id-labels" checked={edgeLabelOptions.idLabels} onCheckedChange={(checked) => updateEdgeLabels('idLabels', checked === true)} />
+                        <FieldLabel htmlFor="edge-id-labels">E1</FieldLabel>
+                      </Field>
+                    </FieldGroup>
+                  </FieldSet>
+
+                  <FieldSet className="md:col-span-2 xl:col-span-2">
+                    <FieldLegend variant="label">Layers</FieldLegend>
+                    <FieldGroup className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-x-4 gap-y-2">
+                      <LayerField id="layer-delaunay" label="Delaunay" color="var(--canvas-edge)" checked={toggles.delaunayEdges} onCheckedChange={(checked) => updateLayer('delaunayEdges', checked)} />
+                      <LayerField id="layer-split-lines" label="Split" color="var(--canvas-split)" checked={toggles.splitLines} onCheckedChange={(checked) => updateLayer('splitLines', checked)} />
+                      <LayerField id="layer-candidates" label="Candidates" color="var(--canvas-edge-candidate)" checked={toggles.candidateEdges} onCheckedChange={(checked) => updateLayer('candidateEdges', checked)} />
+                      <LayerField id="layer-circumcircles" label="Circles" color="var(--canvas-circle)" checked={toggles.circumcircles} onCheckedChange={(checked) => updateLayer('circumcircles', checked)} />
+                      <LayerField id="layer-deleted" label="Deleted" color="var(--canvas-edge-deleted)" checked={toggles.deletedEdges} onCheckedChange={(checked) => updateLayer('deletedEdges', checked)} />
+                      <LayerField id="layer-nearest" label="Nearest" color="var(--canvas-edge-nearest)" checked={toggles.nearestArrows} onCheckedChange={(checked) => updateLayer('nearestArrows', checked)} />
+                    </FieldGroup>
+                  </FieldSet>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {result ? (
+            <ResultPanel result={result} />
+          ) : (
+            <Card size="sm" className="h-full min-h-0 py-0">
+              <CardHeader className="border-b pb-3">
+                <CardTitle>Results</CardTitle>
+              </CardHeader>
+              <CardContent className="flex min-h-0 flex-1 items-center justify-center py-3 text-sm text-muted-foreground">
+                Run the algorithm to see nearest neighbors.
+              </CardContent>
+            </Card>
+          )}
+        </aside>
+
+        <section className="order-1 min-h-0 xl:order-2">
+          <Card className="h-full min-h-0 py-0">
             <CardContent className="h-full min-h-0 p-0">
               <GeometryCanvas
                 ref={canvasRef}
@@ -288,25 +385,12 @@ export default function App() {
               />
             </CardContent>
           </Card>
-
-          <TraceLog
-            events={visibleTraceEvents}
-            points={result?.points ?? points}
-            activeEventId={activeEventId}
-            pointCount={points.length}
-            stepText={result && events.length > 0 ? `${activeTraceIndex + 1}/${events.length}` : '0/0'}
-            phase={frame.currentPhase}
-            mode={effectiveMode}
-            runtimeMs={result?.runtimeMs ?? null}
-            explanation={frame.explanation}
-            traceSkipped={traceSkipped}
-          />
         </section>
 
-        <aside className="grid min-h-0 gap-3 xl:grid-rows-[auto_minmax(0,1fr)]">
-          <Card className="py-0">
-            <CardContent className="p-3">
-              <div className="flex flex-col gap-3">
+        <aside className="order-3 min-h-0 xl:order-3 xl:h-full">
+          <Card className="h-full min-h-0 py-0">
+            <CardContent className="flex h-full min-h-0 flex-col p-3">
+              <div className="flex min-h-0 flex-1 flex-col gap-3">
                 <FieldSet>
                   <FieldLegend variant="label">Input</FieldLegend>
                   <FieldGroup className="gap-2">
@@ -314,6 +398,16 @@ export default function App() {
                       <Button type="button" variant="outline" size="sm" className="h-9" onClick={openUpload}>
                         <Upload data-icon="inline-start" />
                         Upload
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={canvasInputMode === 'add' ? 'secondary' : 'outline'}
+                        size="sm"
+                        className="h-9"
+                        aria-pressed={canvasInputMode === 'add'}
+                        onClick={() => setCanvasInputMode((current) => (current === 'add' ? 'pan' : 'add'))}
+                      >
+                        Manual
                       </Button>
                       <Button type="button" variant="outline" size="sm" className="h-9" onClick={generateRandom}>
                         <Sparkles data-icon="inline-start" />
@@ -323,7 +417,7 @@ export default function App() {
                         <GitMerge data-icon="inline-start" />
                         Stress
                       </Button>
-                      <Button type="button" variant="outline" size="sm" className="h-9" onClick={clear}>
+                      <Button type="button" variant="outline" size="sm" className="col-span-2 h-9" onClick={clear}>
                         <Eraser data-icon="inline-start" />
                         Clear
                       </Button>
@@ -340,9 +434,9 @@ export default function App() {
                         min={2}
                         max={MAX_POINT_COUNT}
                         step={1}
-                        value={pointCount}
-                        onChange={(event) => setPointCount(event.target.value === '' ? 0 : Number(event.target.value))}
-                        onBlur={() => setPointCount((current) => clampPointCount(current))}
+                        value={pointCountInput}
+                        onChange={(event) => setPointCountInput(event.target.value)}
+                        onBlur={() => setPointCountInput(String(clampPointCount(Number(pointCountInput))))}
                         className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                       />
                     </Field>
@@ -388,37 +482,6 @@ export default function App() {
                         className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-50"
                       />
                     </Field>
-
-                    <div className="grid gap-2">
-                      <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-                        <span>Interaction</span>
-                        <span>Shift+click adds in any mode</span>
-                      </div>
-                      <ToggleGroup
-                        type="single"
-                        variant="outline"
-                        value={canvasInputMode}
-                        onValueChange={(value) => {
-                          if (value) setCanvasInputMode(value as CanvasInputMode);
-                        }}
-                        className="grid w-full grid-cols-2"
-                      >
-                        <ToggleGroupItem value="pan" className="h-9 w-full text-sm">
-                          Pan / Zoom
-                        </ToggleGroupItem>
-                        <ToggleGroupItem value="add" className="h-9 w-full text-sm">
-                          Add Points
-                        </ToggleGroupItem>
-                      </ToggleGroup>
-                      <div className="grid grid-cols-2 gap-2">
-                        <Button type="button" variant="outline" size="sm" className="h-9" onClick={() => canvasRef.current?.fitToPoints()} disabled={points.length === 0}>
-                          Fit View
-                        </Button>
-                        <Button type="button" variant="outline" size="sm" className="h-9" onClick={() => canvasRef.current?.resetView()}>
-                          Reset View
-                        </Button>
-                      </div>
-                    </div>
                   </FieldGroup>
                 </FieldSet>
 
@@ -500,81 +563,33 @@ export default function App() {
                   </FieldGroup>
                 </FieldSet>
 
-                <div className="grid gap-3 xl:grid-cols-2 xl:gap-4">
-                  <FieldSet>
-                    <FieldLegend variant="label">Point labels</FieldLegend>
-                    <FieldGroup className="gap-2">
-                      <Field orientation="horizontal">
-                        <Checkbox id="input-labels" checked={pointLabelOptions.inputLabels} onCheckedChange={(checked) => updatePointLabels('inputLabels', checked === true)} />
-                        <FieldLabel htmlFor="input-labels">Input</FieldLabel>
-                      </Field>
-                      <Field orientation="horizontal">
-                        <Checkbox id="sorted-labels" checked={pointLabelOptions.sortedLabels} onCheckedChange={(checked) => updatePointLabels('sortedLabels', checked === true)} />
-                        <FieldLabel htmlFor="sorted-labels">Sorted</FieldLabel>
-                      </Field>
-                      <Field orientation="horizontal">
-                        <Checkbox id="coordinate-labels" checked={pointLabelOptions.coordinates} onCheckedChange={(checked) => updatePointLabels('coordinates', checked === true)} />
-                        <FieldLabel htmlFor="coordinate-labels">(x; y)</FieldLabel>
-                      </Field>
-                    </FieldGroup>
-                  </FieldSet>
+                <div className="mt-auto flex flex-col gap-3">
+                  {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
-                  <FieldSet>
-                    <FieldLegend variant="label">Edge labels</FieldLegend>
-                    <FieldGroup className="gap-2">
-                      <Field orientation="horizontal">
-                        <Checkbox id="edge-pair-labels" checked={edgeLabelOptions.pairLabels} onCheckedChange={(checked) => updateEdgeLabels('pairLabels', checked === true)} />
-                        <FieldLabel htmlFor="edge-pair-labels">P1-P2</FieldLabel>
-                      </Field>
-                      <Field orientation="horizontal">
-                        <Checkbox id="edge-id-labels" checked={edgeLabelOptions.idLabels} onCheckedChange={(checked) => updateEdgeLabels('idLabels', checked === true)} />
-                        <FieldLabel htmlFor="edge-id-labels">E1</FieldLabel>
-                      </Field>
-                    </FieldGroup>
-                  </FieldSet>
-
-                  <FieldSet className="xl:col-span-2">
-                    <FieldLegend variant="label">Layers</FieldLegend>
-                    <FieldGroup className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-x-4 gap-y-2">
-                      <LayerField id="layer-delaunay" label="Delaunay" color="var(--canvas-edge)" checked={toggles.delaunayEdges} onCheckedChange={(checked) => updateLayer('delaunayEdges', checked)} />
-                      <LayerField id="layer-split-lines" label="Split" color="var(--canvas-split)" checked={toggles.splitLines} onCheckedChange={(checked) => updateLayer('splitLines', checked)} />
-                      <LayerField id="layer-candidates" label="Candidates" color="var(--canvas-edge-candidate)" checked={toggles.candidateEdges} onCheckedChange={(checked) => updateLayer('candidateEdges', checked)} />
-                      <LayerField id="layer-circumcircles" label="Circles" color="var(--canvas-circle)" checked={toggles.circumcircles} onCheckedChange={(checked) => updateLayer('circumcircles', checked)} />
-                      <LayerField id="layer-deleted" label="Deleted" color="var(--canvas-edge-deleted)" checked={toggles.deletedEdges} onCheckedChange={(checked) => updateLayer('deletedEdges', checked)} />
-                      <LayerField id="layer-nearest" label="Nearest" color="var(--canvas-edge-nearest)" checked={toggles.nearestArrows} onCheckedChange={(checked) => updateLayer('nearestArrows', checked)} />
-                    </FieldGroup>
-                  </FieldSet>
+                  <Button type="button" size="sm" className="h-9" onClick={run} disabled={points.length < 2 || running}>
+                    {running ? <LoaderCircle data-icon="inline-start" className="animate-spin" /> : <Cpu data-icon="inline-start" />}
+                    {running ? 'Running' : 'Run'}
+                  </Button>
                 </div>
-
-                <div className="grid gap-1 text-xs text-muted-foreground">
-                  <p>Drag to pan. Use the wheel or trackpad pinch to zoom.</p>
-                  <p>Random and stress generators can use a centered spread or the current viewport bounds.</p>
-                  <p>Use the stress preset to demonstrate merge-heavy large inputs for the efficiency requirement.</p>
-                  <p>Point and edge labels are hidden automatically in dense views.</p>
-                  {points.length > TRACE_OFF_POINT_LIMIT ? <p>Trace recording is disabled above {TRACE_OFF_POINT_LIMIT.toLocaleString()} points.</p> : null}
-                  {points.length > 100 && points.length <= TRACE_OFF_POINT_LIMIT ? <p>Detailed trace disabled above 100 points.</p> : null}
-                  {mode === 'step' && resultTraceLevel === null && !result ? <p>Run again after switching back to step.</p> : null}
-                  {error ? <span className="text-destructive">{error}</span> : null}
-                </div>
-
-                <Button type="button" size="sm" className="h-9" onClick={run} disabled={points.length < 2}>
-                  <Cpu data-icon="inline-start" />
-                  Run
-                </Button>
               </div>
             </CardContent>
           </Card>
-
-          {result ? (
-            <ResultPanel result={result} />
-          ) : (
-            <Card size="sm" className="min-h-0 py-0">
-              <CardContent className="flex h-full min-h-0 items-center justify-center py-3 text-sm text-muted-foreground">
-                Run the algorithm to see nearest neighbors.
-              </CardContent>
-            </Card>
-          )}
         </aside>
+
+        <section className="order-4 min-h-0 xl:order-4 xl:col-[2/4] xl:h-full">
+          <TraceLog
+            events={visibleTraceEvents}
+            points={result?.points ?? points}
+            activeEventId={activeEventId}
+            pointCount={points.length}
+            stepText={result && events.length > 0 ? `${activeTraceIndex + 1}/${events.length}` : '0/0'}
+            phase={frame.currentPhase}
+            mode={effectiveMode}
+            runtimeMs={result?.runtimeMs ?? null}
+            explanation={frame.explanation}
+            traceSkipped={traceSkipped}
+          />
+        </section>
       </div>
     </main>
   );

@@ -1,6 +1,6 @@
 import type { AlgorithmResult } from '../app/types';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 
@@ -10,9 +10,12 @@ interface ResultPanelProps {
 
 export function ResultPanel({ result }: ResultPanelProps) {
   return (
-    <Card size="sm" className="min-h-0 py-0">
-      <CardContent className="h-full min-h-0 py-3">
-        <ScrollArea className="h-full">
+    <Card size="sm" className="h-full min-h-0 py-0">
+      <CardHeader className="border-b pb-3">
+        <CardTitle>Results</CardTitle>
+      </CardHeader>
+      <CardContent className="flex min-h-0 flex-1 flex-col py-3">
+        <ScrollArea className="min-h-0 flex-1">
           <div className="flex flex-col">
             {result.nearestNeighbors.map((item) => {
               const source = result.points[item.point];
